@@ -7,7 +7,7 @@ All dependencies are self-contained in this project using git's submodule system
 ## Installation
 
 ```
-git clone https://github.com/eqdiag/showtime
+git clone https://github.com/eqdiag/learnWebgpu
 cd learnWebgpu
 git submodule update --init
 ```
@@ -19,13 +19,15 @@ git submodule update --init
 
 
 # Getting Started
-- [ ] Setup
-- [ ] Window
-- [ ] Adapter
-- [ ] Device
-- [ ] Command Queue
-- [ ] Color
+- [x] Setup
+- [x] Window
+- [x] Adapter
+- [x] Device
+- [x] Command Queue
+- [x] Color
 - [ ] Abstractions
+	- [ ] Error handling/check/abort
+	- [ ] Coloring stuff like in vulkan lib
 
 # Basic 3D Rendering
 
