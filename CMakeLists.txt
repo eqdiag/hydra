@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.0...3.25)
 project(
-    learnWebgpu # name of the project, which will also be the name of the visual studio solution if you use it
+    backstage # name of the project, which will also be the name of the visual studio solution if you use it
     VERSION 0.1.0 # any version number
     LANGUAGES CXX C # programming languages used by the project
 )
@@ -29,7 +29,7 @@ endif()
 
 
 file(GLOB src
-    #"src/engine.cpp"
+    "src/backends/wgpu/*.cpp"
     #"src/core/*.cpp"
     #"src/math/*.cpp"
     #"src/widgets/*.cpp"
@@ -68,7 +68,7 @@ configure_file(
 )
 
 
-message("Building learnWebgpu...")
+message("Building backstage...")
 
 
 add_subdirectory(external/glfw)
@@ -79,9 +79,9 @@ add_subdirectory(external/glfw3webgpu)
 add_executable (
     ${PROJECT_NAME}
     src/main.cpp
-    #${src}
+    ${src}
     #${imgui_src}
-)
+ )
 
 target_include_directories(
     ${PROJECT_NAME} 
@@ -100,7 +100,7 @@ target_link_libraries(
 )
 
 
-set_target_properties(learnWebgpu PROPERTIES
+set_target_properties(backstage PROPERTIES
     CXX_STANDARD 17
     CXX_EXTENSIONS OFF
     COMPILE_WARNING_AS_ERROR ON
@@ -112,13 +112,13 @@ set_target_properties(learnWebgpu PROPERTIES
 
 
 if (MSVC)
-    target_compile_options(learnWebgpu PRIVATE /W4)
+    target_compile_options(backstage PRIVATE /W4)
 else()
-    target_compile_options(learnWebgpu PRIVATE -Wall -Wextra -pedantic)
+    target_compile_options(backstage PRIVATE -Wall -Wextra -pedantic)
 endif()
 
 if(XCODE)
-    set_target_properties(learnWebgpu PROPERTIES
+    set_target_properties(backstage PROPERTIES
         XCODE_GENERATE_SCHEME ON
         XCODE_SCHEME_ENABLE_GPU_FRAME_CAPTURE_MODE "Metal")
 endif()
