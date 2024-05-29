@@ -7,7 +7,7 @@ All dependencies are self-contained in this project using git's submodule system
 ## Installation
 
 ```
-git clone https://github.com/eqdiag/learnWebgpu
+git clone https://github.com/eqdiag/backstage
 cd learnWebgpu
 git submodule update --init
 ```
