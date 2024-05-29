@@ -1,4 +1,4 @@
-# learnWebgpu
+# backstage
 
 Personal repo for learning webgpu in c++.
 
