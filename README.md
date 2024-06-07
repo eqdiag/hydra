@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # hydra
 
 Personal rendering engine, with a v
@@ -17,8 +18,6 @@ cargo run
 git clone https://github.com/eqdiag/hydra
 wasm-pack build --target web
 ```
-
-
 
 
 ## Tutorial Tasks 
@@ -50,11 +49,6 @@ wasm-pack build --target web
 - [ ] Object system
 - [ ] GLTF loading
 
-
-
-- [ ] Extra Chapter
-- [ ] GPU Driven Rendering
-- [ ] Extra Resources
 
 
 
