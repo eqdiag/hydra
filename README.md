@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # hydra
 
 Personal rendering engine, with a v
