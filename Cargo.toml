@@ -26,3 +26,7 @@ web-sys = { version = "0.3", features = [
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[[bin]]
+name = "demo"
+path = "src/main.rs"
+
