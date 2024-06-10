@@ -120,7 +120,6 @@ impl<'a> App<'a> {
                 let r = position.x / self.size.width as f64;
                 let b = position.y / self.size.height as f64;
                 self.bg_color = wgpu::Color{r,b,..Default::default()};
-                println!("pos: {:?}",position);
             }
             _ => {}
         }
@@ -192,6 +191,7 @@ pub async fn run(){
         .build(&event_loop)
         .unwrap();
 
+
     //Give wasm access to canvas
     #[cfg(target_arch = "wasm32")]
     {
@@ -199,7 +199,7 @@ pub async fn run(){
         // the size manually when on web.
         use winit::dpi::PhysicalSize;
         //Set size of canvas here!!!
-        //window.window.request_inner_size(PhysicalSize::new(450, 400));
+        //window.window.request_inner_size(PhysicalSize::new(100, 400));
         
         use winit::platform::web::WindowExtWebSys;
         web_sys::window()
