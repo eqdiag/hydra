@@ -23,7 +23,7 @@ wasm-pack build --target web
 ## Tutorial Tasks 
 - [x] Setup
 - [x] Surface
-- [ ] Pipeline
+- [x] Pipeline
 - [ ] Buffers & Indices
 - [ ] Textures & Bind Groups
 - [ ] Uniforms and camera
@@ -31,7 +31,10 @@ wasm-pack build --target web
 - [ ] Depth buffer
 - [ ] Model loading
 
-
+## Abstractions
+- [ ] Context (holds wgpu resources), make a builder
+- [ ] Window
+- [ ] App (has window, context,etc?)
 
 ## Features
 - [ ] Gradient sky background (compute)

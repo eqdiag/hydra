@@ -1,4 +1,4 @@
-use wgpu::RequestAdapterOptions;
+use wgpu::{BlendState, ColorTargetState, FragmentState, MultisampleState, RequestAdapterOptions};
 use winit::{dpi::PhysicalSize, event::{ElementState, KeyEvent, WindowEvent}, event_loop::EventLoop, keyboard::{KeyCode, PhysicalKey}, window::WindowBuilder};
 
 #[cfg(target_arch="wasm32")]
@@ -16,7 +16,8 @@ struct App<'a>{
     window: &'a winit::window::Window,
 
     //Actual app state
-    bg_color: wgpu::Color
+    bg_color: wgpu::Color,
+    render_pipeline: wgpu::RenderPipeline
 }
 
 impl<'a> App<'a> {
@@ -88,6 +89,62 @@ impl<'a> App<'a> {
             desired_maximum_frame_latency: 2
         };
 
+
+        //Pipelines
+
+        //Shader modules first
+        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor{
+            label: Some("my shader module"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into())
+        });
+
+        //Pipeline layout (how uniform chunks of data are loaded into pipelines)
+        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor{
+            label: Some("my render pipeline layout"),
+            bind_group_layouts: &[],
+            push_constant_ranges: &[]
+        });
+
+        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor{
+            label: Some("my render pipeline"),
+            layout: Some(&pipeline_layout),
+            vertex: wgpu::VertexState{
+                module: &shader,
+                entry_point: "vs_main",
+                buffers: &[]
+            },
+            primitive: wgpu::PrimitiveState{
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: None, //No culling rn
+                //Requires: depth clip control feature
+                unclipped_depth: false,
+                polygon_mode: wgpu::PolygonMode::Fill,
+                //Requires: conservative raster feature
+                conservative: false
+            },
+            //For depth-testing
+            depth_stencil: None,
+            //For MSAA type stuff
+            multisample: MultisampleState{
+                count: 1,
+                mask: !0,
+                alpha_to_coverage_enabled: false
+            },
+            fragment: Some(FragmentState{
+                module: &shader,
+                entry_point: "fs_main",
+                targets: &[Some(ColorTargetState{
+                    format: config.format,
+                    blend: Some(wgpu::BlendState::REPLACE),
+                    write_mask: wgpu::ColorWrites::ALL
+                })]
+            }),
+            //For multi-view rendering (to array of textures, like a dynamic cubemap or something?)
+            multiview: None,
+        });
+
         Self{
             window,
             surface,
@@ -95,7 +152,8 @@ impl<'a> App<'a> {
             queue,
             config,
             size,
-            bg_color: wgpu::Color{r: 1.0,g: 0.0,b: 0.0,a: 1.0}
+            bg_color: wgpu::Color{r: 1.0,g: 0.0,b: 0.0,a: 1.0},
+            render_pipeline
         }
 
     }
@@ -140,8 +198,9 @@ impl<'a> App<'a> {
         });
 
         {
-            let _render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("my render pass"),
+                //This is @location(0) of render pipeline
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &view,
                     resolve_target: None,
@@ -154,6 +213,9 @@ impl<'a> App<'a> {
                 occlusion_query_set: None,
                 timestamp_writes: None,
             });
+
+            render_pass.set_pipeline(&self.render_pipeline);
+            render_pass.draw(0..3, 0..1);
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));
