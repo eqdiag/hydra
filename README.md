@@ -22,7 +22,7 @@ wasm-pack build --target web
 
 ## Tutorial Tasks 
 - [x] Setup
-- [ ] Surface
+- [x] Surface
 - [ ] Pipeline
 - [ ] Buffers & Indices
 - [ ] Textures & Bind Groups
