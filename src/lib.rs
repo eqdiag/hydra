@@ -1,3 +1,4 @@
+use image::GenericImageView;
 use wgpu::{util::BufferInitDescriptor, BlendState, ColorTargetState, FragmentState, MultisampleState, RequestAdapterOptions};
 use winit::{dpi::PhysicalSize, event::{ElementState, KeyEvent, WindowEvent}, event_loop::EventLoop, keyboard::{KeyCode, PhysicalKey}, window::WindowBuilder};
 use wgpu::util::DeviceExt;
@@ -25,6 +26,14 @@ const VERTICES2: &[BasicVertex] = &[
     BasicVertex { position: [-0.21918549, -0.44939706, 0.0], color: [0.5, 0.0, 0.5] }, // C
     BasicVertex { position: [0.35966998, -0.3473291, 0.0], color: [0.5, 0.0, 0.5] }, // D
     BasicVertex { position: [0.44147372, 0.2347359, 0.0], color: [0.5, 0.0, 0.5] }, // E
+];
+
+const VERTICES3: &[TextureVertex] = &[
+    TextureVertex{ position: [-0.0868241, 0.49240386, 0.0], tex_coords: [0.4131759, 0.00759614], }, // A
+    TextureVertex { position: [-0.49513406, 0.06958647, 0.0], tex_coords: [0.0048659444, 0.43041354], }, // B
+    TextureVertex { position: [-0.21918549, -0.44939706, 0.0], tex_coords: [0.28081453, 0.949397], }, // C
+    TextureVertex { position: [0.35966998, -0.3473291, 0.0], tex_coords: [0.85967, 0.84732914], }, // D
+    TextureVertex { position: [0.44147372, 0.2347359, 0.0], tex_coords: [0.9414737, 0.2652641], }, // E
 ];
 
 const INDICES: &[u16] = &[
@@ -57,6 +66,37 @@ impl BasicVertex{
     }
 }
 
+#[repr(C)]
+#[derive(Clone, Copy,Debug,bytemuck::Pod,bytemuck::Zeroable)]
+struct TextureVertex{
+     position: [f32;3],
+     tex_coords: [f32;2]
+}
+
+impl TextureVertex{
+
+    fn layout() -> wgpu::VertexBufferLayout<'static>{
+        wgpu::VertexBufferLayout{
+            array_stride: std::mem::size_of::<TextureVertex>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &[                
+                //position
+                wgpu::VertexAttribute{
+                    format: wgpu::VertexFormat::Float32x3,
+                    offset: 0,
+                    shader_location: 0,
+                },
+                //color
+                wgpu::VertexAttribute{
+                    format: wgpu::VertexFormat::Float32x2,
+                    offset: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
+                    shader_location: 1,
+                }
+            ],
+        }
+    }
+}
+
 struct App<'a>{
     surface: wgpu::Surface<'a>,
     device: wgpu::Device,
@@ -76,7 +116,9 @@ struct App<'a>{
     num_vertices: u32,
 
     index_buffer: wgpu::Buffer,
-    num_indices: u32
+    num_indices: u32,
+
+    diffuse_bind_group: wgpu::BindGroup
 }
 
 impl<'a> App<'a> {
@@ -96,6 +138,7 @@ impl<'a> App<'a> {
 
         //Surface
         let surface = unsafe{ instance.create_surface(window)}.unwrap();
+
 
         //Adapter
         //Adapter = hardware device + api, ex: linux gpu = 2 adapters (one opengl, one vulkan)
@@ -151,18 +194,147 @@ impl<'a> App<'a> {
         };
 
 
-        //Pipelines
+       
+
+        //Buffers
+        //Creates and initializes buffer data
+        let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor{
+            label: Some("my vertex buffer"),
+            contents: bytemuck::cast_slice(VERTICES3),
+            usage: wgpu::BufferUsages::VERTEX
+        });
+
+        let num_vertices = VERTICES2.len() as u32;
+
+        let index_buffer = device.create_buffer_init(&BufferInitDescriptor{
+            label: Some("my index buffer"),
+            contents: bytemuck::cast_slice(INDICES),
+            usage: wgpu::BufferUsages::INDEX
+        });
+
+        let num_indices = INDICES.len() as u32;
+
+        //Images
+        //CPU side data
+        let diffuse_bytes = include_bytes!("happy_tree.png");
+        let diffuse_image = image::load_from_memory(diffuse_bytes).unwrap();
+        let diffuse_rgba = diffuse_image.to_rgba8();
+        let dimensions = diffuse_image.dimensions();
+
+        //GPU side data
+        let texture_size = wgpu::Extent3d{
+            width: dimensions.0,
+            height: dimensions.1,
+            depth_or_array_layers: 1,
+        };
+
+        let diffuse_texture = device.create_texture(&wgpu::TextureDescriptor{
+            label: Some("my diffuse texture"),
+            size: texture_size,
+            mip_level_count: 1, //For mipmapping
+            sample_count: 1, //For multisampling
+            dimension: wgpu::TextureDimension::D2, //2D texture
+            format: wgpu::TextureFormat::Rgba8UnormSrgb, //
+            //Will copy CPU side data to texture & wil bind it in shader
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            view_formats: &[],
+        });
+
+        //Copy the texture data to gpu
+        queue.write_texture(
+            //Where to copy
+            wgpu::ImageCopyTexture{
+                texture: &diffuse_texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                //Color,depth,stencil
+                aspect: wgpu::TextureAspect::All,
+            },
+            //The data
+            &diffuse_rgba,
+            //Texture layout
+            wgpu::ImageDataLayout{
+                offset: 0,
+                bytes_per_row: Some(4*dimensions.0),
+                rows_per_image: Some(dimensions.1),
+            },
+            texture_size
+        );
+
+        //Create a texture view and sampler
+        let diffuse_texture_view = diffuse_texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let diffuse_sampler = device.create_sampler(&wgpu::SamplerDescriptor{
+            label: Some("my sampler"),
+            //Handles tex coords outside [0,1]^2
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+
+            //When texel size is too small,too big
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            ..Default::default()
+        });
+
+        //Bind group layout & bind group
+        let texture_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor{
+            label: Some("my bind group"),
+            entries: &[
+                //Entry for texture view
+                wgpu::BindGroupLayoutEntry{
+                    binding: 0,
+                    //Frag shader has access to it
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture{
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false
+                    },
+                    count: None,
+                },
+                //Entry for texture sampler
+                wgpu::BindGroupLayoutEntry{
+                    binding: 1,
+                    //Frag shader has access to it
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                }
+            ],
+        });
+
+        //Build the bind group here by attaching resources
+        let diffuse_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor{
+            label: Some("texture bind group"),
+            layout: &texture_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry{
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&diffuse_texture_view),
+                },
+                wgpu::BindGroupEntry{
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&diffuse_sampler),
+                },
+            ],
+        });
+
+         //Pipelines
 
         //Shader modules first
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor{
             label: Some("my shader module"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("shader2.wgsl").into())
+            source: wgpu::ShaderSource::Wgsl(include_str!("shader3.wgsl").into())
         });
 
         //Pipeline layout (how uniform chunks of data are loaded into pipelines)
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor{
             label: Some("my render pipeline layout"),
-            bind_group_layouts: &[],
+            bind_group_layouts: 
+            &[
+                &texture_bind_group_layout
+            ],
             push_constant_ranges: &[]
         });
 
@@ -173,7 +345,7 @@ impl<'a> App<'a> {
                 module: &shader,
                 entry_point: "vs_main",
                 buffers: &[
-                    BasicVertex::layout()
+                    TextureVertex::layout()
                 ]
             },
             primitive: wgpu::PrimitiveState{
@@ -208,24 +380,6 @@ impl<'a> App<'a> {
             multiview: None,
         });
 
-        //Buffers
-        //Creates and initializes buffer data
-        let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor{
-            label: Some("my vertex buffer"),
-            contents: bytemuck::cast_slice(VERTICES2),
-            usage: wgpu::BufferUsages::VERTEX
-        });
-
-        let num_vertices = VERTICES2.len() as u32;
-
-        let index_buffer = device.create_buffer_init(&BufferInitDescriptor{
-            label: Some("my index buffer"),
-            contents: bytemuck::cast_slice(INDICES),
-            usage: wgpu::BufferUsages::INDEX
-        });
-
-        let num_indices = INDICES.len() as u32;
-
         Self{
             window,
             surface,
@@ -238,7 +392,8 @@ impl<'a> App<'a> {
             vertex_buffer,
             num_vertices,
             index_buffer,
-            num_indices
+            num_indices,
+            diffuse_bind_group
         }
 
     }
@@ -301,6 +456,9 @@ impl<'a> App<'a> {
 
             //Bind pipeline
             render_pass.set_pipeline(&self.render_pipeline);
+
+            //Bind...well bind groups
+            render_pass.set_bind_group(0,&self.diffuse_bind_group, &[]);
 
             //Bind resources 
             render_pass.set_vertex_buffer(0,self.vertex_buffer.slice(..));
