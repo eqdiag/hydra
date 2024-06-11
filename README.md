@@ -24,9 +24,11 @@ wasm-pack build --target web
 - [x] Setup
 - [x] Surface
 - [x] Pipeline
-- [ ] Buffers & Indices
+
+- [x] Buffers & Indices
 - [ ] Textures & Bind Groups
 - [ ] Uniforms and camera
+
 - [ ] Instancing
 - [ ] Depth buffer
 - [ ] Model loading

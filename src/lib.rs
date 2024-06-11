@@ -1,9 +1,61 @@
-use wgpu::{BlendState, ColorTargetState, FragmentState, MultisampleState, RequestAdapterOptions};
+use wgpu::{util::BufferInitDescriptor, BlendState, ColorTargetState, FragmentState, MultisampleState, RequestAdapterOptions};
 use winit::{dpi::PhysicalSize, event::{ElementState, KeyEvent, WindowEvent}, event_loop::EventLoop, keyboard::{KeyCode, PhysicalKey}, window::WindowBuilder};
+use wgpu::util::DeviceExt;
+
 
 #[cfg(target_arch="wasm32")]
 use wasm_bindgen::prelude::*;
 
+#[repr(C)]
+#[derive(Clone, Copy,Debug,bytemuck::Pod,bytemuck::Zeroable)]
+struct BasicVertex{
+     position: [f32;3],
+     color: [f32;3]
+}
+
+const VERTICES: &[BasicVertex] = &[
+    BasicVertex { position: [0.0, 0.5, 0.0], color: [1.0, 0.0, 0.0] },
+    BasicVertex { position: [-0.5, -0.5, 0.0], color: [0.0, 1.0, 0.0] },
+    BasicVertex { position: [0.5, -0.5, 0.0], color: [0.0, 0.0, 1.0] },
+];
+
+const VERTICES2: &[BasicVertex] = &[
+    BasicVertex { position: [-0.0868241, 0.49240386, 0.0], color: [0.5, 0.0, 0.5] }, // A
+    BasicVertex { position: [-0.49513406, 0.06958647, 0.0], color: [0.5, 0.0, 0.5] }, // B
+    BasicVertex { position: [-0.21918549, -0.44939706, 0.0], color: [0.5, 0.0, 0.5] }, // C
+    BasicVertex { position: [0.35966998, -0.3473291, 0.0], color: [0.5, 0.0, 0.5] }, // D
+    BasicVertex { position: [0.44147372, 0.2347359, 0.0], color: [0.5, 0.0, 0.5] }, // E
+];
+
+const INDICES: &[u16] = &[
+    0, 1, 4,
+    1, 2, 4,
+    2, 3, 4,
+];
+
+impl BasicVertex{
+
+    fn layout() -> wgpu::VertexBufferLayout<'static>{
+        wgpu::VertexBufferLayout{
+            array_stride: std::mem::size_of::<BasicVertex>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &[                
+                //position
+                wgpu::VertexAttribute{
+                    format: wgpu::VertexFormat::Float32x3,
+                    offset: 0,
+                    shader_location: 0,
+                },
+                //color
+                wgpu::VertexAttribute{
+                    format: wgpu::VertexFormat::Float32x3,
+                    offset: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
+                    shader_location: 1,
+                }
+            ],
+        }
+    }
+}
 
 struct App<'a>{
     surface: wgpu::Surface<'a>,
@@ -17,7 +69,14 @@ struct App<'a>{
 
     //Actual app state
     bg_color: wgpu::Color,
-    render_pipeline: wgpu::RenderPipeline
+    render_pipeline: wgpu::RenderPipeline,
+
+    //Resources
+    vertex_buffer: wgpu::Buffer,
+    num_vertices: u32,
+
+    index_buffer: wgpu::Buffer,
+    num_indices: u32
 }
 
 impl<'a> App<'a> {
@@ -71,6 +130,8 @@ impl<'a> App<'a> {
             .copied()
             .unwrap_or(surface_capabilites.formats[0]);
 
+        println!("SURFACE FORMAT: {:#?}",surface_format);
+
         //Swapchain config
         let config = wgpu::SurfaceConfiguration{
             //Use of swapchain images
@@ -95,7 +156,7 @@ impl<'a> App<'a> {
         //Shader modules first
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor{
             label: Some("my shader module"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into())
+            source: wgpu::ShaderSource::Wgsl(include_str!("shader2.wgsl").into())
         });
 
         //Pipeline layout (how uniform chunks of data are loaded into pipelines)
@@ -111,7 +172,9 @@ impl<'a> App<'a> {
             vertex: wgpu::VertexState{
                 module: &shader,
                 entry_point: "vs_main",
-                buffers: &[]
+                buffers: &[
+                    BasicVertex::layout()
+                ]
             },
             primitive: wgpu::PrimitiveState{
                 topology: wgpu::PrimitiveTopology::TriangleList,
@@ -145,6 +208,24 @@ impl<'a> App<'a> {
             multiview: None,
         });
 
+        //Buffers
+        //Creates and initializes buffer data
+        let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor{
+            label: Some("my vertex buffer"),
+            contents: bytemuck::cast_slice(VERTICES2),
+            usage: wgpu::BufferUsages::VERTEX
+        });
+
+        let num_vertices = VERTICES2.len() as u32;
+
+        let index_buffer = device.create_buffer_init(&BufferInitDescriptor{
+            label: Some("my index buffer"),
+            contents: bytemuck::cast_slice(INDICES),
+            usage: wgpu::BufferUsages::INDEX
+        });
+
+        let num_indices = INDICES.len() as u32;
+
         Self{
             window,
             surface,
@@ -153,7 +234,11 @@ impl<'a> App<'a> {
             config,
             size,
             bg_color: wgpu::Color{r: 1.0,g: 0.0,b: 0.0,a: 1.0},
-            render_pipeline
+            render_pipeline,
+            vertex_buffer,
+            num_vertices,
+            index_buffer,
+            num_indices
         }
 
     }
@@ -214,8 +299,16 @@ impl<'a> App<'a> {
                 timestamp_writes: None,
             });
 
+            //Bind pipeline
             render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.draw(0..3, 0..1);
+
+            //Bind resources 
+            render_pass.set_vertex_buffer(0,self.vertex_buffer.slice(..));
+            render_pass.set_index_buffer(self.index_buffer.slice(..),wgpu::IndexFormat::Uint16);
+
+            //Issue commands
+            //render_pass.draw(0..3, 0..1); (for vertex buffer)
+            render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));
