@@ -1,4 +1,6 @@
+use cgmath::{InnerSpace, Rotation3};
 use image::GenericImageView;
+use instance::{Instance, InstanceRaw};
 use wgpu::{util::BufferInitDescriptor, BlendState, ColorTargetState, FragmentState, MultisampleState, RequestAdapterOptions};
 use winit::{dpi::PhysicalSize, event::{ElementState, KeyEvent, WindowEvent}, event_loop::EventLoop, keyboard::{KeyCode, PhysicalKey}, window::WindowBuilder};
 use wgpu::util::DeviceExt;
@@ -7,6 +9,10 @@ use wgpu::util::DeviceExt;
 #[cfg(target_arch="wasm32")]
 use wasm_bindgen::prelude::*;
 
+pub mod camera;
+pub mod instance;
+
+
 #[repr(C)]
 #[derive(Clone, Copy,Debug,bytemuck::Pod,bytemuck::Zeroable)]
 struct BasicVertex{
@@ -14,33 +20,6 @@ struct BasicVertex{
      color: [f32;3]
 }
 
-const VERTICES: &[BasicVertex] = &[
-    BasicVertex { position: [0.0, 0.5, 0.0], color: [1.0, 0.0, 0.0] },
-    BasicVertex { position: [-0.5, -0.5, 0.0], color: [0.0, 1.0, 0.0] },
-    BasicVertex { position: [0.5, -0.5, 0.0], color: [0.0, 0.0, 1.0] },
-];
-
-const VERTICES2: &[BasicVertex] = &[
-    BasicVertex { position: [-0.0868241, 0.49240386, 0.0], color: [0.5, 0.0, 0.5] }, // A
-    BasicVertex { position: [-0.49513406, 0.06958647, 0.0], color: [0.5, 0.0, 0.5] }, // B
-    BasicVertex { position: [-0.21918549, -0.44939706, 0.0], color: [0.5, 0.0, 0.5] }, // C
-    BasicVertex { position: [0.35966998, -0.3473291, 0.0], color: [0.5, 0.0, 0.5] }, // D
-    BasicVertex { position: [0.44147372, 0.2347359, 0.0], color: [0.5, 0.0, 0.5] }, // E
-];
-
-const VERTICES3: &[TextureVertex] = &[
-    TextureVertex{ position: [-0.0868241, 0.49240386, 0.0], tex_coords: [0.4131759, 0.00759614], }, // A
-    TextureVertex { position: [-0.49513406, 0.06958647, 0.0], tex_coords: [0.0048659444, 0.43041354], }, // B
-    TextureVertex { position: [-0.21918549, -0.44939706, 0.0], tex_coords: [0.28081453, 0.949397], }, // C
-    TextureVertex { position: [0.35966998, -0.3473291, 0.0], tex_coords: [0.85967, 0.84732914], }, // D
-    TextureVertex { position: [0.44147372, 0.2347359, 0.0], tex_coords: [0.9414737, 0.2652641], }, // E
-];
-
-const INDICES: &[u16] = &[
-    0, 1, 4,
-    1, 2, 4,
-    2, 3, 4,
-];
 
 impl BasicVertex{
 
@@ -97,6 +76,38 @@ impl TextureVertex{
     }
 }
 
+
+const VERTICES: &[BasicVertex] = &[
+    BasicVertex { position: [0.0, 0.5, 0.0], color: [1.0, 0.0, 0.0] },
+    BasicVertex { position: [-0.5, -0.5, 0.0], color: [0.0, 1.0, 0.0] },
+    BasicVertex { position: [0.5, -0.5, 0.0], color: [0.0, 0.0, 1.0] },
+];
+
+const VERTICES2: &[BasicVertex] = &[
+    BasicVertex { position: [-0.0868241, 0.49240386, 0.0], color: [0.5, 0.0, 0.5] }, // A
+    BasicVertex { position: [-0.49513406, 0.06958647, 0.0], color: [0.5, 0.0, 0.5] }, // B
+    BasicVertex { position: [-0.21918549, -0.44939706, 0.0], color: [0.5, 0.0, 0.5] }, // C
+    BasicVertex { position: [0.35966998, -0.3473291, 0.0], color: [0.5, 0.0, 0.5] }, // D
+    BasicVertex { position: [0.44147372, 0.2347359, 0.0], color: [0.5, 0.0, 0.5] }, // E
+];
+
+const VERTICES3: &[TextureVertex] = &[
+    TextureVertex{ position: [-0.0868241, 0.49240386, 0.0], tex_coords: [0.4131759, 0.00759614], }, // A
+    TextureVertex { position: [-0.49513406, 0.06958647, 0.0], tex_coords: [0.0048659444, 0.43041354], }, // B
+    TextureVertex { position: [-0.21918549, -0.44939706, 0.0], tex_coords: [0.28081453, 0.949397], }, // C
+    TextureVertex { position: [0.35966998, -0.3473291, 0.0], tex_coords: [0.85967, 0.84732914], }, // D
+    TextureVertex { position: [0.44147372, 0.2347359, 0.0], tex_coords: [0.9414737, 0.2652641], }, // E
+];
+
+const INDICES: &[u16] = &[
+    0, 1, 4,
+    1, 2, 4,
+    2, 3, 4,
+];
+
+const INSTANCES_PER_ROW: u32 = 10;
+const INSTANCE_DX: cgmath::Vector3<f32> = cgmath::Vector3::new(INSTANCES_PER_ROW as f32 * 0.5, 0.0, INSTANCES_PER_ROW as f32 * 0.5);
+
 struct App<'a>{
     surface: wgpu::Surface<'a>,
     device: wgpu::Device,
@@ -118,23 +129,49 @@ struct App<'a>{
     index_buffer: wgpu::Buffer,
     num_indices: u32,
 
-    diffuse_bind_group: wgpu::BindGroup
+    //Material stuff
+    diffuse_bind_group: wgpu::BindGroup,
+
+    //Camera
+    camera_controller: camera::CameraController,
+    camera: camera::Camera,
+    camera_uniform: camera::CameraUniform,
+    camera_buffer: wgpu::Buffer,
+    camera_bind_group: wgpu::BindGroup,
+
+    //Instancing
+    instances: Vec<instance::Instance>,
+    instance_buffer: wgpu::Buffer
 }
+
+
 
 impl<'a> App<'a> {
     async fn new(window: &'a winit::window::Window) -> App<'a>{
         
         let size = window.inner_size();
 
+        //Backend logic based on web/os
+        let backend = if cfg!(target_arch = "wasm32"){
+            wgpu::Backends::GL
+        }else{
+            //If running natively, choose vulkan if on windows, otherwise choose a default
+            if cfg!(target_os="windows"){
+                wgpu::Backends::VULKAN
+            }else{
+                wgpu::Backends::PRIMARY
+            }
+        };
+
         //Instance
         //Validation and shader debugging turned enabled by default
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-            #[cfg(not(target_arch="wasm32"))]
-            backends: wgpu::Backends::PRIMARY,
-            #[cfg(target_arch="wasm32")]
-            backends: wgpu::Backends::GL,
+            backends: backend,
             ..Default::default()
         });
+
+       
+
 
         //Surface
         let surface = unsafe{ instance.create_surface(window)}.unwrap();
@@ -320,12 +357,91 @@ impl<'a> App<'a> {
             ],
         });
 
-         //Pipelines
+         
+
+        //Camera stuff
+        let camera_controller = camera::CameraController::new(0.01);
+
+        let camera = camera::Camera::new(
+            (0.0,1.0,2.0).into(),
+            (0.0,0.0,0.0).into(),
+            cgmath::Vector3::unit_y(),
+            config.width as f32 / config.height as f32,
+            45.0,
+            0.1,
+            100.0,
+        );
+
+        let mut camera_uniform = camera::CameraUniform::new();
+        camera_uniform.update(&camera);
+
+        let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor{
+            label: Some("my camera buffer"),
+            contents: bytemuck::cast_slice(&[camera_uniform]),
+            //Uniforms in shaders, will copy to often via queue operations
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+
+        let camera_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor{
+            label: Some("my camera bind group layout"),
+            entries: &[
+                wgpu::BindGroupLayoutEntry{
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer{
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }
+            ],
+        });
+
+        let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor{
+            label: Some("my camera bind group"),
+            layout: &camera_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry{
+                    binding: 0,
+                    resource: camera_buffer.as_entire_binding()
+                }
+            ],
+        });
+
+        //Instances
+
+        let mut instances = vec![];
+        for i in 0..INSTANCES_PER_ROW{
+            for j in 0..INSTANCES_PER_ROW{
+                let position = cgmath::Vector3 { x: i as f32, y: 0.0, z: j as f32 } - INSTANCE_DX;
+
+                let rotation = if position.magnitude2() < 0.001 {
+                    // this is needed so an object at (0, 0, 0) won't get scaled to zero
+                    // as Quaternions can affect scale if they're not created correctly
+                    cgmath::Quaternion::from_angle_z(cgmath::Deg(0.0))
+                } else {
+                    cgmath::Quaternion::from_axis_angle(position.normalize(), cgmath::Deg(45.0))
+                };
+
+                instances.push(Instance::new(position, rotation));
+            }
+        }
+
+        let instance_data = instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
+        let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor{
+            label: Some("my instance buffer"),
+            contents: bytemuck::cast_slice(&instance_data),
+            usage: wgpu::BufferUsages::VERTEX
+        }); 
+
+
+        //Pipelines
 
         //Shader modules first
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor{
             label: Some("my shader module"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("shader3.wgsl").into())
+            source: wgpu::ShaderSource::Wgsl(include_str!("shader5.wgsl").into())
         });
 
         //Pipeline layout (how uniform chunks of data are loaded into pipelines)
@@ -333,7 +449,8 @@ impl<'a> App<'a> {
             label: Some("my render pipeline layout"),
             bind_group_layouts: 
             &[
-                &texture_bind_group_layout
+                &texture_bind_group_layout,
+                &camera_bind_group_layout
             ],
             push_constant_ranges: &[]
         });
@@ -345,7 +462,8 @@ impl<'a> App<'a> {
                 module: &shader,
                 entry_point: "vs_main",
                 buffers: &[
-                    TextureVertex::layout()
+                    TextureVertex::layout(),
+                    InstanceRaw::layout()
                 ]
             },
             primitive: wgpu::PrimitiveState{
@@ -393,7 +511,14 @@ impl<'a> App<'a> {
             num_vertices,
             index_buffer,
             num_indices,
-            diffuse_bind_group
+            diffuse_bind_group,
+            camera_controller,
+            camera,
+            camera_uniform,
+            camera_buffer,
+            camera_bind_group,
+            instances,
+            instance_buffer
         }
 
     }
@@ -421,11 +546,16 @@ impl<'a> App<'a> {
             }
             _ => {}
         }
+        if self.camera_controller.handle_input(event){
+            return true
+        }
         false
     }
 
     fn update(&mut self) {
-        
+        self.camera_controller.update_camera(&mut self.camera);
+        self.camera_uniform.update(&self.camera);
+        self.queue.write_buffer(&self.camera_buffer,0, bytemuck::cast_slice(&[self.camera_uniform]));
     }
 
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
@@ -459,14 +589,18 @@ impl<'a> App<'a> {
 
             //Bind...well bind groups
             render_pass.set_bind_group(0,&self.diffuse_bind_group, &[]);
+            render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
 
             //Bind resources 
             render_pass.set_vertex_buffer(0,self.vertex_buffer.slice(..));
+            render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
+
+
             render_pass.set_index_buffer(self.index_buffer.slice(..),wgpu::IndexFormat::Uint16);
 
             //Issue commands
             //render_pass.draw(0..3, 0..1); (for vertex buffer)
-            render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
+            render_pass.draw_indexed(0..self.num_indices, 0, 0..self.instances.len() as u32);
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));
@@ -620,4 +754,5 @@ pub async fn run(){
     })
     .unwrap();
 
+    println!("Exiting...");
 }

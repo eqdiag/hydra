@@ -12,7 +12,7 @@ git clone https://github.com/eqdiag/hydra
 cargo run
 ```
 
-### Web Installation
+### Web Installation (currently fixing)
 ```
 git clone https://github.com/eqdiag/hydra
 wasm-pack build --target web
@@ -26,12 +26,17 @@ wasm-pack build --target web
 - [x] Pipeline
 
 - [x] Buffers & Indices
-- [ ] Textures & Bind Groups
-- [ ] Uniforms and camera
+- [x] Textures & Bind Groups
+- [x] Uniforms and camera
+- [x] Instancing
 
-- [ ] Instancing
 - [ ] Depth buffer
 - [ ] Model loading
+
+
+# Multiple binaries (examples)
+- useful for web support testing 
+- [ ] Fix for web support
 
 ## Abstractions
 - [ ] Context (holds wgpu resources), make a builder
@@ -39,6 +44,9 @@ wasm-pack build --target web
 - [ ] App (has window, context,etc?)
 
 ## Features
+- [ ] Multiple cameras
+    - [ ] Arc camera
+    - [ ] Fly camera
 - [ ] Gradient sky background (compute)
 - [ ] Blinn-Phong model
 - [ ] Gamma correction
