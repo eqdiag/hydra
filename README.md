@@ -19,6 +19,20 @@ wasm-pack build --target web
 <start web-server>
 ```
 
+## Library structure
+- [ ] Util
+    - [ ] image
+    - [ ] buffer
+    - [ ] gfx pipeline
+    - [ ] compute pipeline
+    - [ ] context
+    - [ ] window
+    - [ ] app
+- [ ] Core
+    - [ ] camera
+    - [ ] mesh
+    - [ ] material
+    - [ ] model
 
 ## Tutorial Tasks 
 - [x] Setup
@@ -30,18 +44,15 @@ wasm-pack build --target web
 - [x] Uniforms and camera
 - [x] Instancing
 
-- [ ] Depth buffer
-- [ ] Model loading
+- [x] Depth buffer
+- [ ] Textured quad
+- [ ] HDR/tonemapping
 
 
 # Multiple binaries (examples)
 - useful for web support testing 
 - [ ] Fix for web support
 
-## Abstractions
-- [ ] Context (holds wgpu resources), make a builder
-- [ ] Window
-- [ ] App (has window, context,etc?)
 
 ## Features
 - [ ] Multiple cameras

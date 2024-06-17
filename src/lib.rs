@@ -1,7 +1,7 @@
 use cgmath::{InnerSpace, Rotation3};
 use image::GenericImageView;
 use instance::{Instance, InstanceRaw};
-use wgpu::{util::BufferInitDescriptor, BlendState, ColorTargetState, FragmentState, MultisampleState, RequestAdapterOptions};
+use wgpu::{util::BufferInitDescriptor, BlendState, ColorTargetState, FragmentState, MultisampleState, RenderPassDepthStencilAttachment, RequestAdapterOptions};
 use winit::{dpi::PhysicalSize, event::{ElementState, KeyEvent, WindowEvent}, event_loop::EventLoop, keyboard::{KeyCode, PhysicalKey}, window::WindowBuilder};
 use wgpu::util::DeviceExt;
 
@@ -141,7 +141,14 @@ struct App<'a>{
 
     //Instancing
     instances: Vec<instance::Instance>,
-    instance_buffer: wgpu::Buffer
+    instance_buffer: wgpu::Buffer,
+
+    //Depth texture stuff
+    depth_texture: wgpu::Texture,
+    depth_texture_view: wgpu::TextureView,
+
+    //Misc state info
+    time: f32,
 }
 
 
@@ -314,6 +321,24 @@ impl<'a> App<'a> {
             ..Default::default()
         });
 
+        //Create depth texture
+        let depth_texture_dimensions = wgpu::Extent3d{
+            width: config.width,
+            height: config.height,
+            depth_or_array_layers: 1,
+        };
+        let depth_texture = device.create_texture(&wgpu::TextureDescriptor{
+            label: Some("my depth texture"),
+            size: depth_texture_dimensions,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Depth32Float,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            view_formats: &[],
+        });
+        let depth_texture_view = depth_texture.create_view(&wgpu::TextureViewDescriptor::default());
+
         //Bind group layout & bind group
         let texture_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor{
             label: Some("my bind group"),
@@ -432,7 +457,7 @@ impl<'a> App<'a> {
         let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor{
             label: Some("my instance buffer"),
             contents: bytemuck::cast_slice(&instance_data),
-            usage: wgpu::BufferUsages::VERTEX
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST
         }); 
 
 
@@ -478,7 +503,13 @@ impl<'a> App<'a> {
                 conservative: false
             },
             //For depth-testing
-            depth_stencil: None,
+            depth_stencil: Some(wgpu::DepthStencilState{
+                format: wgpu::TextureFormat::Depth32Float,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::Less,
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            }),
             //For MSAA type stuff
             multisample: MultisampleState{
                 count: 1,
@@ -518,7 +549,10 @@ impl<'a> App<'a> {
             camera_buffer,
             camera_bind_group,
             instances,
-            instance_buffer
+            instance_buffer,
+            time: 0.0,
+            depth_texture,
+            depth_texture_view
         }
 
     }
@@ -553,9 +587,28 @@ impl<'a> App<'a> {
     }
 
     fn update(&mut self) {
+
+        self.time+=0.01;
+
+        //Update camera
         self.camera_controller.update_camera(&mut self.camera);
         self.camera_uniform.update(&self.camera);
         self.queue.write_buffer(&self.camera_buffer,0, bytemuck::cast_slice(&[self.camera_uniform]));
+
+        //Update instances
+        for instance in self.instances.iter_mut(){
+            instance.rotation = if instance.position.magnitude2() < 0.001 {
+                // this is needed so an object at (0, 0, 0) won't get scaled to zero
+                // as Quaternions can affect scale if they're not created correctly
+                cgmath::Quaternion::from_angle_z(cgmath::Deg(self.time))
+            } else {
+                cgmath::Quaternion::from_axis_angle(instance.position.normalize(), cgmath::Deg(45.0 + self.time))
+            }
+        }
+        //Turn to raw then update gpu buffer
+        let instances_raw = self.instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
+        self.queue.write_buffer(&self.instance_buffer,0,bytemuck::cast_slice(&instances_raw));
+        
     }
 
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
@@ -579,7 +632,14 @@ impl<'a> App<'a> {
                         store: wgpu::StoreOp::Store,
                     },
                 })],
-                depth_stencil_attachment: None,
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment{
+                    view: &self.depth_texture_view,
+                    depth_ops: Some(wgpu::Operations{
+                        load: wgpu::LoadOp::Clear(1.0),
+                        store: wgpu::StoreOp::Store,
+                    }),
+                    stencil_ops: None,
+                }),
                 occlusion_query_set: None,
                 timestamp_writes: None,
             });
@@ -601,6 +661,7 @@ impl<'a> App<'a> {
             //Issue commands
             //render_pass.draw(0..3, 0..1); (for vertex buffer)
             render_pass.draw_indexed(0..self.num_indices, 0, 0..self.instances.len() as u32);
+
         }
 
         self.queue.submit(std::iter::once(encoder.finish()));
