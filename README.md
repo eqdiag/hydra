@@ -21,18 +21,21 @@ wasm-pack build --target web
 
 ## Library structure
 - [ ] Util
+    - [ ] context
+    - [ ] window
+    - [ ] app
+    
     - [ ] image
     - [ ] buffer
     - [ ] gfx pipeline
     - [ ] compute pipeline
-    - [ ] context
-    - [ ] window
-    - [ ] app
+
 - [ ] Core
     - [ ] camera
     - [ ] mesh
     - [ ] material
     - [ ] model
+    - [ ] ui
 
 ## Tutorial Tasks 
 - [x] Setup

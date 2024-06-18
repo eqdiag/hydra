@@ -1,4 +1,7 @@
-use cgmath::{InnerSpace, Rotation3};
+pub mod util;
+
+
+/*use cgmath::{InnerSpace, Rotation3};
 use image::GenericImageView;
 use instance::{Instance, InstanceRaw};
 use wgpu::{util::BufferInitDescriptor, BlendState, ColorTargetState, FragmentState, MultisampleState, RenderPassDepthStencilAttachment, RequestAdapterOptions};
@@ -9,7 +12,7 @@ use wgpu::util::DeviceExt;
 #[cfg(target_arch="wasm32")]
 use wasm_bindgen::prelude::*;
 
-pub mod camera;
+pub mod core;
 pub mod instance;
 
 
@@ -133,9 +136,9 @@ struct App<'a>{
     diffuse_bind_group: wgpu::BindGroup,
 
     //Camera
-    camera_controller: camera::CameraController,
-    camera: camera::Camera,
-    camera_uniform: camera::CameraUniform,
+    camera_controller: core::camera::CameraController,
+    camera: core::camera::Camera,
+    camera_uniform: core::camera::CameraUniform,
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
 
@@ -385,9 +388,9 @@ impl<'a> App<'a> {
          
 
         //Camera stuff
-        let camera_controller = camera::CameraController::new(0.01);
+        let camera_controller = core::camera::CameraController::new(0.01);
 
-        let camera = camera::Camera::new(
+        let camera = core::camera::Camera::new(
             (0.0,1.0,2.0).into(),
             (0.0,0.0,0.0).into(),
             cgmath::Vector3::unit_y(),
@@ -397,7 +400,7 @@ impl<'a> App<'a> {
             100.0,
         );
 
-        let mut camera_uniform = camera::CameraUniform::new();
+        let mut camera_uniform = core::camera::CameraUniform::new();
         camera_uniform.update(&camera);
 
         let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor{
@@ -816,4 +819,4 @@ pub async fn run(){
     .unwrap();
 
     println!("Exiting...");
-}
+}*/
