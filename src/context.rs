@@ -1,3 +1,4 @@
+use colored::Colorize;
 use wgpu::{Backends, PowerPreference};
 
 pub struct Context<'a>{
@@ -8,12 +9,13 @@ pub struct Context<'a>{
     pub queue: wgpu::Queue,
     pub size: winit::dpi::PhysicalSize<u32>,
     pub config: wgpu::SurfaceConfiguration,
+
+    init: bool,
 }
 
 impl<'a> Context<'a>{
+   
     pub async fn new(window: &'a winit::window::Window) -> Context<'a>{
-    //wgpu init
-
         //instance
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor{
             backends: Backends::PRIMARY,
@@ -62,6 +64,19 @@ impl<'a> Context<'a>{
 
         surface.configure(&device, &config);
 
+        //adapter features & limits
+
+        println!("{}",&format!("Adapter Features: {:#?}",adapter.features())[..].green());
+        println!("{}",&format!("Adapter Limits: {:#?}",adapter.features())[..].green());
+
+
+
+        //surface present modes,formats, usages
+        println!("{}",&format!("Surface [Present Modes]: {:#?}",surface_capabilities.present_modes)[..].green());
+        println!("{}",&format!("Surface [Formats]: {:#?}",surface_capabilities.formats)[..].green());
+        println!("{}",&format!("Surface [Usages]: {:#?}",surface_capabilities.usages)[..].green());
+
+
 
         Self{
             instance,
@@ -70,8 +85,13 @@ impl<'a> Context<'a>{
             device,
             queue,
             size,
-            config
+            config,
+            init: true
         }
+    }
+
+    pub fn init(&self) -> bool{
+        self.init
     }
 
 

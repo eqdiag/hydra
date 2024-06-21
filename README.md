@@ -21,9 +21,11 @@ wasm-pack build --target web
 
 ## Library structure
 - [ ] Util
-    - [ ] context
+    - [ ] context (implement handy shorcut functions on the context)
     - [ ] window
     - [ ] app
+        - [ ] headless app
+        - [ ] windowed app
     
     - [ ] image
     - [ ] buffer

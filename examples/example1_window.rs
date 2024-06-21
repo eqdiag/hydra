@@ -1,45 +1,41 @@
-use wgpu::Backends;
-use winit::dpi::PhysicalSize;
-use winit::{application::ApplicationHandler, event::KeyEvent, event_loop::ActiveEventLoop, keyboard::KeyCode, window::WindowAttributes};
-use winit::keyboard::PhysicalKey::Code;
+use hydra::{app::{App, EventHandler}, context::Context,app::Frame};
+use winit::keyboard::KeyCode::*;
 
-struct App{
 
+struct State{
+    pub x: i32,
 }
 
-impl ApplicationHandler for App{
-    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        println!("resumed");
-    }
+fn init(_app: &App<State>) -> State{
+    println!("Creates state!");
+    State {  x: 1}
+}
 
-    fn window_event(
-        &mut self,
-        event_loop: &ActiveEventLoop,
-        window_id: winit::window::WindowId,
-        event: winit::event::WindowEvent,
-    ) {
-        match event{
-            winit::event::WindowEvent::CloseRequested => event_loop.exit(),
-            winit::event::WindowEvent::KeyboardInput {event: KeyEvent{ physical_key: Code(KeyCode::Escape),..},..} => event_loop.exit(),
-            winit::event::WindowEvent::Resized(PhysicalSize{width,height}) => {
-                println!("Resized ({},{})",width,height);
-            }
-            _ => {}
-        }
+
+
+fn update(state: &mut State){
+    state.x +=1;
+}
+
+fn render(state: &State,ctx: &Context,frame: Frame){
+    println!("value {}",state.x);
+}
+
+fn key_input(state: &mut State,key: hydra::app::Key,event_handler: EventHandler){
+    println!("key: {:#?}",key);
+    match key{
+        Escape => event_handler.exit(),
+        _ => {}
     }
 }
+
+
 
 fn main(){
-
-    //Event loop + window
-    let event_loop = winit::event_loop::EventLoop::new().unwrap();
-
-    let window_attributes = WindowAttributes::default()
-        .with_title("hydra (demo)");
-
-    let window = event_loop.create_window(window_attributes).unwrap();
-
-    //Create custom app
-    let mut app = App{};
-    event_loop.run_app(&mut app).unwrap();
+    App::new(init)
+    .update(update)
+    .render(render)
+    .on_key(key_input)
+    .with_title("example1_window".to_string())
+    .run();
 }
