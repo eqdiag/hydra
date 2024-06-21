@@ -24,7 +24,9 @@ struct State{
     pipeline: wgpu::RenderPipeline,
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
-    texture_bundle: texture::TextureBundle
+    texture_bundle0: texture::TextureBundle,
+    texture_bundle1: texture::TextureBundle,
+    texture_num: u32
 }
 
 fn init(_app: &App<State>,ctx: &Context) -> State{
@@ -72,8 +74,11 @@ fn init(_app: &App<State>,ctx: &Context) -> State{
 
 
     //create images & textures
-    let image_bytes = include_bytes!("../assets/happy_tree.png");
-    let texture_bundle = texture::TextureBundle::from_bytes(ctx, image_bytes,&texture_bind_group_layout).unwrap();
+    let image_bytes0 = include_bytes!("../assets/happy_tree.png");
+    let texture_bundle0 = texture::TextureBundle::from_bytes(ctx, image_bytes0,&texture_bind_group_layout).unwrap();
+
+    let image_bytes1 = include_bytes!("../assets/happy_tree_cartoon.png");
+    let texture_bundle1 = texture::TextureBundle::from_bytes(ctx, image_bytes1,&texture_bind_group_layout).unwrap();
 
 
     //pipeline layout
@@ -107,7 +112,9 @@ fn init(_app: &App<State>,ctx: &Context) -> State{
         pipeline,
         vertex_buffer,
         index_buffer,
-        texture_bundle
+        texture_bundle0,
+        texture_bundle1,
+        texture_num: 0
     }
 }
 
@@ -154,7 +161,12 @@ fn render(state: &State,ctx: &Context,frame: Frame){
 
 
         //bind groups
-        render_pass.set_bind_group(0,&state.texture_bundle.bind_group, &[]);
+        if state.texture_num == 0{
+            render_pass.set_bind_group(0,&state.texture_bundle0.bind_group, &[]);
+        }else{
+            render_pass.set_bind_group(0,&state.texture_bundle1.bind_group, &[]);
+        }
+
 
         //bind pipeline
         render_pass.set_pipeline(&state.pipeline);
@@ -171,6 +183,14 @@ fn key_input(state: &mut State,key: hydra::app::Key,key_state: ElementState,even
     println!("key: {:#?}",key);
     match key{
         Escape => event_handler.exit(),
+        Space => {
+            match key_state{
+                ElementState::Pressed => {
+                    state.texture_num = (state.texture_num + 1) % 2;
+                }
+                _ => {}
+            }
+        }
         _ => {}
     }
 }

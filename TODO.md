@@ -5,7 +5,7 @@
 - [x] Render Pass (example2_renderpass.rs)
 - [x] Graphics Pipeline (example3_graphics_pipeline.rs)
 - [x] Buffers & Indices (example4_buffers.rs)
-- [ ] Textures & Bind Groups (example5_textures.rs)
+- [x] Textures & Bind Groups (example5_textures.rs)
 
 - [ ] Uniforms and camera (example6_uniforms.rs)
 - [ ] Instancing (example7_instancing.rs)
