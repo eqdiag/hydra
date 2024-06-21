@@ -6,7 +6,7 @@ using my GPU and wanna make sure they can run everywhere.
 Hydra's main goal is make it easy to create interactive gpu-based applications that run natively and on the web.
 It provides many *utility* gpu functions and math functions to make setting up 2d and 3d wgpu applications easier.
 
-It's also designed to be *<~~o_o~~>ergonomic<~~o_o~~>* 
+It's also designed to be *:wavy_dash:ergonomic:wavy_dash:* 
 
 ## Features
 - A
