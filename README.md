@@ -1,4 +1,4 @@
-# hydra
+# hydra :octopus:
 
 A project spawned out of the frustration with so many graphics APIs: I just want to easily draw things 
 using my GPU and wanna make sure they can run everywhere.
