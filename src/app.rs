@@ -1,6 +1,7 @@
 use colored::Colorize;
 use wgpu::SurfaceTexture;
-use winit::event::{DeviceEvent, DeviceId};
+use winit::dpi::PhysicalPosition;
+use winit::event::{DeviceEvent, DeviceId, ElementState};
 use winit::{application::ApplicationHandler, dpi::PhysicalSize, event::KeyEvent, event_loop::ActiveEventLoop, window::WindowAttributes};
 use winit::keyboard::PhysicalKey::Code;
 
@@ -8,6 +9,8 @@ use crate::context::Context;
 
 pub type Key = winit::keyboard::KeyCode;
 pub type Frame = SurfaceTexture;
+pub type Position = PhysicalPosition<f64>;
+pub type Size = PhysicalSize<u32>;
 
 pub struct EventHandler<'a>{
     control_flow: &'a ActiveEventLoop
@@ -25,10 +28,14 @@ pub struct App<'a,T>{
     context: Option<crate::context::Context<'a>>,
     window: Option<&'a winit::window::Window>,
     state: Option<T>,
-    init_fn: fn(&App<T>) -> T,
+    init_fn: fn(&App<T>,ctx: &Context) -> T,
     update_fn: Option<fn(state: &mut T)>,
     render_fn: Option<fn(state: &T,ctx: &Context,frame: Frame)>,
-    on_key_fn: Option<fn(state: &mut T,key: Key,event_handler: EventHandler)>,
+
+    //input functions
+    on_key_fn: Option<fn(state: &mut T,key: Key,key_state: ElementState, event_handler: EventHandler)>,
+    on_mouse_move_fn: Option<fn(state: &mut T,p: Position,size: Size,event_handler: EventHandler)>,
+
 
     //misc customization
     title: String
@@ -36,8 +43,21 @@ pub struct App<'a,T>{
 
 impl<'window,T> App<'window,T>{
 
-    pub fn new(init: fn(&App<T>) -> T) -> App<'window,T> {
-        App::<T>{context: None,window: None,state:None, init_fn: init,update_fn: None,render_fn: None,on_key_fn: None,title: "hydra app".to_string()}
+    pub fn new(init: fn(&App<T>,ctx: &Context) -> T) -> App<'window,T> {
+        App::<T>{
+            context: None,
+            window: None,
+            state:None,
+            init_fn: init,
+            update_fn: None,
+            render_fn: None,
+            on_key_fn: None,
+            on_mouse_move_fn: None,
+            title: "hydra app".to_string()}
+    }
+
+    pub fn context(&self) -> Option<&crate::context::Context>{
+        self.context.as_ref()
     }
 
     pub fn window(&self) -> Option<&winit::window::Window>{
@@ -55,8 +75,13 @@ impl<'window,T> App<'window,T>{
         self
     }
 
-    pub fn on_key(mut self,f: fn(state: &mut T,key: Key,event_handler: EventHandler)) -> Self{
+    pub fn on_key(mut self,f: fn(state: &mut T,key: Key,key_state: ElementState,event_handler: EventHandler)) -> Self{
         self.on_key_fn = Some(f);
+        self
+    }
+
+    pub fn on_mouse_move(mut self,f: fn(state: &mut T,p: Position,size: Size,event_handler: EventHandler)) -> Self{
+        self.on_mouse_move_fn = Some(f);
         self
     }
 
@@ -72,6 +97,8 @@ impl<'window,T> App<'window,T>{
         let context = crate::context::Context::new(window).await;
         self.context = Some(context);
 
+        self.window = Some(&window);
+
         
         event_loop.run_app(&mut self).unwrap();
 
@@ -83,6 +110,7 @@ impl<'window,T> App<'window,T>{
 
         let window_attributes = WindowAttributes::default()
             .with_title(&self.title);
+
 
         let window = event_loop.create_window(window_attributes).unwrap();
 
@@ -96,7 +124,7 @@ impl<'window,T> ApplicationHandler for App<'window,T>{
         match self.state{
             Some(_) => {},
             None => {
-                self.state = Some((self.init_fn)(&self));
+                self.state = Some((self.init_fn)(&self,self.context.as_ref().unwrap()));
             },
         }
     }
@@ -109,15 +137,28 @@ impl<'window,T> ApplicationHandler for App<'window,T>{
     ) {
         match event{
             winit::event::WindowEvent::CloseRequested => event_loop.exit(),
-            winit::event::WindowEvent::KeyboardInput {event: KeyEvent{ physical_key: Code(key),..},..} => {
+            winit::event::WindowEvent::KeyboardInput {event: KeyEvent{ physical_key: Code(key),state,..},..} => {
                 if let Some(f) = self.on_key_fn{
-                    if let Some(state) = self.state.as_mut(){
+                    if let Some(app_state) = self.state.as_mut(){
                         let event_handler = EventHandler{control_flow: event_loop};
-                        f(state,key,event_handler);
+                        f(app_state,key,state,event_handler);
                     }
                     
                 }
             },
+            winit::event::WindowEvent::CursorMoved { position ,..} => {
+                if let Some(f) = self.on_mouse_move_fn{
+                    if let Some(state) = self.state.as_mut(){
+                        let event_handler = EventHandler{control_flow: event_loop};
+                        if let Some(win) = self.window{
+                            let size =  win.inner_size();
+                            f(state,position,size,event_handler);
+                        }
+                        
+                    }
+                    
+                }
+            }
             winit::event::WindowEvent::Resized(PhysicalSize{width,height}) => {
                 println!("{}",&format!("Resized : ({width},{height})")[..].green());
                 if let Some(win) = &self.window{

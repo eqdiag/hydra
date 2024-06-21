@@ -3,6 +3,16 @@
 A project spawned out of the frustration with so many graphics APIs: I just want to easily draw things 
 using my GPU and wanna make sure they can run everywhere.
 
+Hydra's main goal is make it easy to create interactive gpu-based applications that run natively and on the web.
+It provides many *utility* gpu functions and math functions to make setting up 2d and 3d wgpu applications easier.
+
+It's also designed to be *<~o_o~>ergonomic<~o_o~>* 
+
+## Features
+- A
+- B
+- C
+
 ## Installation
 
 
@@ -18,65 +28,6 @@ git clone https://github.com/eqdiag/hydra
 wasm-pack build --target web
 <start web-server>
 ```
-
-## Library structure
-- [ ] Util
-    - [ ] context (implement handy shorcut functions on the context)
-    - [ ] window
-    - [ ] app
-        - [ ] headless app
-        - [ ] windowed app
-    
-    - [ ] image
-    - [ ] buffer
-    - [ ] gfx pipeline
-    - [ ] compute pipeline
-
-- [ ] Core
-    - [ ] camera
-    - [ ] mesh
-    - [ ] material
-    - [ ] model
-    - [ ] ui
-
-## Tutorial Tasks 
-- [x] Setup
-- [x] Surface
-- [x] Pipeline
-
-- [x] Buffers & Indices
-- [x] Textures & Bind Groups
-- [x] Uniforms and camera
-- [x] Instancing
-
-- [x] Depth buffer
-- [ ] Textured quad
-- [ ] HDR/tonemapping
-
-
-# Multiple binaries (examples)
-- useful for web support testing 
-- [ ] Fix for web support
-
-
-## Features
-- [ ] Multiple cameras
-    - [ ] Arc camera
-    - [ ] Fly camera
-- [ ] Gradient sky background (compute)
-- [ ] Blinn-Phong model
-- [ ] Gamma correction
-- [ ] Shadows
-- [ ] Normal mapping
-- [ ] Parallax mapping
-- [ ] HDR
-- [ ] Bloom
-- [ ] Deferred shading
-- [ ] SSAO
-- [ ] Descriptor set allocator
-- [ ] Material system
-- [ ] Object system
-- [ ] GLTF loading
 
 
 
