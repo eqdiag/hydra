@@ -24,7 +24,8 @@ struct State{
     pipeline: wgpu::RenderPipeline,
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
-    texture_bundle: texture::TextureBundle
+    texture: texture::Texture,
+    texture_bind_group: wgpu::BindGroup
 }
 
 fn init(_app: &App<State>,ctx: &Context) -> State{
@@ -43,6 +44,23 @@ fn init(_app: &App<State>,ctx: &Context) -> State{
         label: Some("my index buffer"),
         contents: bytemuck::cast_slice(INDICES),
         usage: wgpu::BufferUsages::INDEX,
+    });
+
+    //create images & textures
+    let image_bytes = include_bytes!("../assets/happy_tree.png");
+    let texture = texture::Texture::from_bytes(ctx, image_bytes).unwrap();
+
+    //create samplers
+    let sampler = ctx.device.create_sampler(&wgpu::SamplerDescriptor{
+        label: Some("my sampler"),
+        //when u,v roll over edge
+        address_mode_u: wgpu::AddressMode::ClampToEdge,
+        address_mode_v: wgpu::AddressMode::ClampToEdge,
+        address_mode_w: wgpu::AddressMode::ClampToEdge,
+        mag_filter: wgpu::FilterMode::Nearest,
+        min_filter: wgpu::FilterMode::Linear,
+        mipmap_filter: wgpu::FilterMode::Linear,
+        ..Default::default()
     });
 
     //bind group layout for textures, could streamline this...
@@ -71,9 +89,21 @@ fn init(_app: &App<State>,ctx: &Context) -> State{
     });
 
 
-    //create images & textures
-    let image_bytes = include_bytes!("../assets/happy_tree.png");
-    let texture_bundle = texture::TextureBundle::from_bytes(ctx, image_bytes,&texture_bind_group_layout).unwrap();
+    let texture_bind_group = ctx.device.create_bind_group(&wgpu::BindGroupDescriptor{
+        label: Some("my bind group"),
+        layout: &texture_bind_group_layout,
+        entries: &[
+            wgpu::BindGroupEntry{
+                binding: 0,
+                resource: wgpu::BindingResource::TextureView(&texture.view),
+            },
+            wgpu::BindGroupEntry{
+                binding: 1,
+                resource: wgpu::BindingResource::Sampler(&sampler),
+            }
+        ],
+    });
+
 
 
     //pipeline layout
@@ -107,13 +137,14 @@ fn init(_app: &App<State>,ctx: &Context) -> State{
         pipeline,
         vertex_buffer,
         index_buffer,
-        texture_bundle
+        texture,
+        texture_bind_group
     }
 }
 
 
 
-fn update(state: &mut State){
+fn update(state: &mut State,ctx: &Context){
     
 }
 
@@ -154,7 +185,7 @@ fn render(state: &State,ctx: &Context,frame: Frame){
 
 
         //bind groups
-        render_pass.set_bind_group(0,&state.texture_bundle.bind_group, &[]);
+        render_pass.set_bind_group(0,&state.texture_bind_group, &[]);
 
         //bind pipeline
         render_pass.set_pipeline(&state.pipeline);

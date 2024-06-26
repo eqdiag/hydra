@@ -2,15 +2,13 @@ use image::GenericImageView;
 use wgpu::ImageCopyTexture;
 
 //Contains a texture,a texture view, a sampler, and a bind group for that texture
-pub struct TextureBundle{
+pub struct Texture{
     pub texture: wgpu::Texture,
     pub view: wgpu::TextureView,
-    pub sampler: wgpu::Sampler,
-    pub bind_group: wgpu::BindGroup
 }
 
-impl TextureBundle{
-    pub fn from_bytes(context: &crate::context::Context, bytes: &[u8],bind_group_layout: &wgpu::BindGroupLayout) -> Result<Self,image::ImageError>{
+impl Texture{
+    pub fn from_bytes(context: &crate::context::Context, bytes: &[u8]) -> Result<Self,image::ImageError>{
         let image = image::load_from_memory(bytes)?;
         //convert it
         let image_rgba = image.to_rgba8();
@@ -56,38 +54,11 @@ impl TextureBundle{
 
         //texture view
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-        let sampler = context.device.create_sampler(&wgpu::SamplerDescriptor{
-            label: Some("my sampler"),
-            //when u,v roll over edge
-            address_mode_u: wgpu::AddressMode::ClampToEdge,
-            address_mode_v: wgpu::AddressMode::ClampToEdge,
-            address_mode_w: wgpu::AddressMode::ClampToEdge,
-            mag_filter: wgpu::FilterMode::Nearest,
-            min_filter: wgpu::FilterMode::Linear,
-            mipmap_filter: wgpu::FilterMode::Linear,
-            ..Default::default()
-        });
+        
 
-        let bind_group = context.device.create_bind_group(&wgpu::BindGroupDescriptor{
-            label: Some("my bind group"),
-            layout: &bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry{
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&view),
-                },
-                wgpu::BindGroupEntry{
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&sampler),
-                }
-            ],
-        });
-
-        Ok(TextureBundle{
+        Ok(Texture{
             texture,
-            view,
-            sampler,
-            bind_group
+            view
         })
 
     }

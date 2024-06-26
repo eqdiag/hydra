@@ -29,7 +29,7 @@ pub struct App<'a,T>{
     window: Option<&'a winit::window::Window>,
     state: Option<T>,
     init_fn: fn(&App<T>,ctx: &Context) -> T,
-    update_fn: Option<fn(state: &mut T)>,
+    update_fn: Option<fn(state: &mut T,ctx: &Context)>,
     render_fn: Option<fn(state: &T,ctx: &Context,frame: Frame)>,
 
     //input functions
@@ -65,7 +65,7 @@ impl<'window,T> App<'window,T>{
     }
 
 
-    pub fn update(mut self,f: fn(state: &mut T)) -> Self{
+    pub fn update(mut self,f: fn(state: &mut T,ctx: &Context)) -> Self{
         self.update_fn = Some(f);
         self
     }
@@ -174,7 +174,7 @@ impl<'window,T> ApplicationHandler for App<'window,T>{
                 //call update
                 if let Some(f) = self.update_fn{
                     if let Some(state) = self.state.as_mut(){
-                        f(state);
+                        f(state,self.context.as_ref().unwrap());
                     }
                 }
 

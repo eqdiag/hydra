@@ -62,7 +62,7 @@ fn init(_app: &App<State>,ctx: &Context) -> State{
 
 
 
-fn update(state: &mut State){
+fn update(state: &mut State,ctx: &Context){
     
 }
 

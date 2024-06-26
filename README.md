@@ -22,7 +22,7 @@ git clone https://github.com/eqdiag/hydra
 cargo run
 ```
 
-### Web Installation (currently fixing)
+### Web Installation (working on it...)
 ```
 git clone https://github.com/eqdiag/hydra
 wasm-pack build --target web

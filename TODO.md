@@ -6,15 +6,20 @@
 - [x] Graphics Pipeline (example3_graphics_pipeline.rs)
 - [x] Buffers & Indices (example4_buffers.rs)
 - [x] Textures & Bind Groups (example5_textures.rs)
+- [x] Uniforms and camera (example6_uniforms.rs)
 
-- [ ] Uniforms and camera (example6_uniforms.rs)
 - [ ] Instancing (example7_instancing.rs)
 - [ ] Depth buffer (example8_depth.rs)
 - [ ] Meshes (example9_mesh.rs)
 
 ## Library structure
-- util (wgpu helpers)
-- core (convenient abstractions built on top of wgpu)
+- core (wgpu basic structure helpers for common use cases)   
+    - pipeline
+    - texture
+    - vertex
+    - context
+    - app
+- util (higher-level abstractions built up on wgpu)
     - [ ] camera
     - [ ] mesh
     - [ ] material

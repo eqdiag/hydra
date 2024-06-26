@@ -77,7 +77,7 @@ fn init(_app: &App<State>,ctx: &Context) -> State{
 
 
 
-fn update(state: &mut State){
+fn update(state: &mut State,ctx: &Context){
     
 }
 
@@ -140,6 +140,6 @@ fn main(){
     .update(update)
     .render(render)
     .on_key(key_input)
-    .with_title("example4_buffers".to_string())
+    .with_title("example4_buffers2".to_string())
     .run();
 }

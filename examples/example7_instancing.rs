@@ -1,6 +1,6 @@
 use hydra::{app::{App, EventHandler, Frame}, context::Context, pipeline::RenderPipelineBuilder, texture, vertex::{ColoredVertex, TexturedVertex}};
 use image::GenericImageView;
-use wgpu::{util::DeviceExt, Backends, ImageCopyTexture, ImageCopyTextureBase, IndexFormat, ShaderModule, ShaderSource, VertexBufferLayout};
+use wgpu::{util::{BufferInitDescriptor, DeviceExt}, Backends, ImageCopyTexture, ImageCopyTextureBase, IndexFormat, ShaderModule, ShaderSource, VertexBufferLayout};
 use winit::{event::ElementState, keyboard::KeyCode::*, window};
 
 const VERTICES: &[TexturedVertex] = &[
@@ -17,18 +17,38 @@ const INDICES: &[u16] = &[
     2, 3, 4,
 ];
 
+#[repr(C)]
+// This is so we can store this in a buffer
+#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+struct MatrixUniform{
+    matrix: [[f32;4];4],
+}
 
-
+impl MatrixUniform{
+    pub fn new() -> Self{
+        MatrixUniform{
+            matrix: nalgebra_glm::Mat4::identity().into()
+        }
+    }
+}
 
 struct State{
     pipeline: wgpu::RenderPipeline,
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
-    texture0: texture::Texture,
-    texture1: texture::Texture,
-    texture_bind_group0: wgpu::BindGroup,
-    texture_bind_group1: wgpu::BindGroup,
-    texture_num: u32
+    texture: texture::Texture,
+    texture_bind_group: wgpu::BindGroup,
+
+    //matrix stuff
+    projection: nalgebra_glm::Mat4,
+    matrix_bind_group: wgpu::BindGroup,
+
+    //cpu side 4x4 matrix data
+    cpu_matrix_uniform: MatrixUniform,
+    //gpu side matrix data
+    gpu_matrix_uniform: wgpu::Buffer,
+
+    pub t: f32,
 }
 
 fn init(_app: &App<State>,ctx: &Context) -> State{
@@ -49,12 +69,32 @@ fn init(_app: &App<State>,ctx: &Context) -> State{
         usage: wgpu::BufferUsages::INDEX,
     });
 
-    //create images & textures
-    let image_bytes0 = include_bytes!("../assets/happy_tree.png");
-    let texture0 = texture::Texture::from_bytes(ctx, image_bytes0).unwrap();
+    //uniform buffers
 
-    let image_bytes1 = include_bytes!("../assets/happy_tree_cartoon.png");
-    let texture1 = texture::Texture::from_bytes(ctx, image_bytes1).unwrap();
+    let mut cpu_matrix_uniform = MatrixUniform::new();
+
+    let projection = nalgebra_glm::perspective(
+        ctx.config.width as f32 / ctx.config.height as f32,
+        45.0,
+        0.1,
+        100.0
+    );
+
+    let model = nalgebra_glm::translate(&nalgebra_glm::Mat4::identity(), &nalgebra_glm::Vec3::new(0.0, 0.0, -3.0));
+
+    cpu_matrix_uniform.matrix = (projection * model).into();
+
+    let gpu_matrix_uniform = ctx.device.create_buffer_init(&BufferInitDescriptor{
+        label: Some("my gpu matrix buffer"),
+        contents: bytemuck::cast_slice(&[cpu_matrix_uniform]),
+        //using as uniform in shaders + will copy cpu-side data to it
+        usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+    });
+
+    //create images & textures
+    let image_bytes = include_bytes!("../assets/happy_tree.png");
+    let texture = texture::Texture::from_bytes(ctx, image_bytes).unwrap();
+    
 
     //create samplers
     let sampler = ctx.device.create_sampler(&wgpu::SamplerDescriptor{
@@ -69,7 +109,7 @@ fn init(_app: &App<State>,ctx: &Context) -> State{
         ..Default::default()
     });
 
-    //bind group layout for textures, could streamline this...
+    //bind group layout for textures
     let texture_bind_group_layout = ctx.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor{
         label: Some("my bind group layout"),
         entries: &[
@@ -94,28 +134,13 @@ fn init(_app: &App<State>,ctx: &Context) -> State{
         ],
     });
 
-    let texture_bind_group0 = ctx.device.create_bind_group(&wgpu::BindGroupDescriptor{
+    let texture_bind_group = ctx.device.create_bind_group(&wgpu::BindGroupDescriptor{
         label: Some("my bind group"),
         layout: &texture_bind_group_layout,
         entries: &[
             wgpu::BindGroupEntry{
                 binding: 0,
-                resource: wgpu::BindingResource::TextureView(&texture0.view),
-            },
-            wgpu::BindGroupEntry{
-                binding: 1,
-                resource: wgpu::BindingResource::Sampler(&sampler),
-            }
-        ],
-    });
-
-    let texture_bind_group1 = ctx.device.create_bind_group(&wgpu::BindGroupDescriptor{
-        label: Some("my bind group"),
-        layout: &texture_bind_group_layout,
-        entries: &[
-            wgpu::BindGroupEntry{
-                binding: 0,
-                resource: wgpu::BindingResource::TextureView(&texture1.view),
+                resource: wgpu::BindingResource::TextureView(&texture.view),
             },
             wgpu::BindGroupEntry{
                 binding: 1,
@@ -125,6 +150,33 @@ fn init(_app: &App<State>,ctx: &Context) -> State{
     });
 
 
+    let matrix_bind_group_layout = ctx.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor{
+        label: Some("my matrix bind group layout"),
+        entries: &[
+            wgpu::BindGroupLayoutEntry{
+                binding: 0,
+                visibility: wgpu::ShaderStages::VERTEX,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }
+        ],
+    });
+
+    let matrix_bind_group = ctx.device.create_bind_group(&wgpu::BindGroupDescriptor{
+        label: Some("my matrix bind group"),
+        layout: &matrix_bind_group_layout,
+        entries: &[
+            wgpu::BindGroupEntry{
+                binding: 0,
+                resource: wgpu::BindingResource::Buffer(gpu_matrix_uniform.as_entire_buffer_binding()),
+            }
+        ],
+    });
+    
 
 
     //pipeline layout
@@ -132,7 +184,8 @@ fn init(_app: &App<State>,ctx: &Context) -> State{
         label: Some("my pipeline layout"),
         //for binding buffers,textures
         bind_group_layouts: &[
-            &texture_bind_group_layout
+            &texture_bind_group_layout,
+            &matrix_bind_group_layout
         ],
         //for pushing uniform data via commands (small data)
         push_constant_ranges: &[],
@@ -146,7 +199,7 @@ fn init(_app: &App<State>,ctx: &Context) -> State{
     };
 
     let pipeline = RenderPipelineBuilder::new(ctx)
-        .with_shaders(ShaderSource::Wgsl(include_str!("../assets/example5_shader.wgsl").into()), "vs_main", "fs_main")
+        .with_shaders(ShaderSource::Wgsl(include_str!("../assets/example6_shader.wgsl").into()), "vs_main", "fs_main")
         .with_culling(None, wgpu::FrontFace::Ccw)
         .with_layout(pipeline_layout)
         .add_vertex_buffer_layout(TexturedVertex::layout())
@@ -158,17 +211,27 @@ fn init(_app: &App<State>,ctx: &Context) -> State{
         pipeline,
         vertex_buffer,
         index_buffer,
-        texture0,
-        texture1,
-        texture_bind_group0,
-        texture_bind_group1,
-        texture_num: 0
+        texture,
+        texture_bind_group,
+        projection,
+        matrix_bind_group,
+        cpu_matrix_uniform,
+        gpu_matrix_uniform,
+        t: 0.0
     }
 }
 
 
 
 fn update(state: &mut State,ctx: &Context){
+
+    state.t += 0.01;
+    let mut model = nalgebra_glm::rotate(&nalgebra_glm::Mat4::identity(),state.t,&nalgebra_glm::Vec3::new(0.0, 1.0, 0.0));
+    model = nalgebra_glm::translate(&nalgebra_glm::Mat4::identity(), &nalgebra_glm::Vec3::new(0.0, 0.0, -3.0)) * model;
+
+    state.cpu_matrix_uniform.matrix = (state.projection * model).into();
+
+    ctx.queue.write_buffer(&state.gpu_matrix_uniform, 0, bytemuck::cast_slice(&[state.cpu_matrix_uniform]));
     
 }
 
@@ -209,12 +272,8 @@ fn render(state: &State,ctx: &Context,frame: Frame){
 
 
         //bind groups
-        if state.texture_num == 0{
-            render_pass.set_bind_group(0,&state.texture_bind_group0, &[]);
-        }else{
-            render_pass.set_bind_group(0,&state.texture_bind_group1, &[]);
-        }
-
+        render_pass.set_bind_group(0,&state.texture_bind_group, &[]);
+        render_pass.set_bind_group(1,&state.matrix_bind_group,&[]);
 
         //bind pipeline
         render_pass.set_pipeline(&state.pipeline);
@@ -231,14 +290,6 @@ fn key_input(state: &mut State,key: hydra::app::Key,key_state: ElementState,even
     println!("key: {:#?}",key);
     match key{
         Escape => event_handler.exit(),
-        Space => {
-            match key_state{
-                ElementState::Pressed => {
-                    state.texture_num = (state.texture_num + 1) % 2;
-                }
-                _ => {}
-            }
-        }
         _ => {}
     }
 }
@@ -250,6 +301,6 @@ fn main(){
     .update(update)
     .render(render)
     .on_key(key_input)
-    .with_title("example5_challenge".to_string())
+    .with_title("example5_textures".to_string())
     .run();
 }
