@@ -1,7 +1,7 @@
 use colored::Colorize;
 use wgpu::SurfaceTexture;
 use winit::dpi::PhysicalPosition;
-use winit::event::{DeviceEvent, DeviceId, ElementState};
+use winit::event::{DeviceEvent, DeviceId, ElementState, MouseButton};
 use winit::{application::ApplicationHandler, dpi::PhysicalSize, event::KeyEvent, event_loop::ActiveEventLoop, window::WindowAttributes};
 use winit::keyboard::PhysicalKey::Code;
 
@@ -34,7 +34,9 @@ pub struct App<'a,T>{
 
     //input functions
     on_key_fn: Option<fn(state: &mut T,key: Key,key_state: ElementState, event_handler: EventHandler)>,
-    on_mouse_move_fn: Option<fn(state: &mut T,p: Position,size: Size,event_handler: EventHandler)>,
+    on_cursor_move_fn: Option<fn(state: &mut T,p: Position,size: Size,event_handler: EventHandler)>,
+    on_mouse_move_fn: Option<fn(state: &mut T,delta: (f32,f32),event_handler: EventHandler)>,
+    on_mouse_input_fn: Option<fn(state: &mut T,mouse_button: MouseButton,button_state: ElementState,event_handler: EventHandler)>,
 
 
     //misc customization
@@ -52,7 +54,9 @@ impl<'window,T> App<'window,T>{
             update_fn: None,
             render_fn: None,
             on_key_fn: None,
+            on_cursor_move_fn: None,
             on_mouse_move_fn: None,
+            on_mouse_input_fn: None,
             title: "hydra app".to_string()}
     }
 
@@ -80,10 +84,21 @@ impl<'window,T> App<'window,T>{
         self
     }
 
-    pub fn on_mouse_move(mut self,f: fn(state: &mut T,p: Position,size: Size,event_handler: EventHandler)) -> Self{
+    pub fn on_cursor_move(mut self,f: fn(state: &mut T,p: Position,size: Size,event_handler: EventHandler)) -> Self{
+        self.on_cursor_move_fn = Some(f);
+        self
+    }
+
+    pub fn on_mouse_move(mut self,f: fn(state: &mut T,delta: (f32,f32),event_handler: EventHandler)) -> Self{
         self.on_mouse_move_fn = Some(f);
         self
     }
+
+    pub fn on_mouse_input(mut self,f: fn(state: &mut T,mouse_button: MouseButton,button_state: ElementState,event_handler: EventHandler)) -> Self{
+        self.on_mouse_input_fn = Some(f);
+        self
+    }
+    
 
     pub fn with_title(mut self,title: String) -> Self{
         self.title = title;
@@ -147,14 +162,23 @@ impl<'window,T> ApplicationHandler for App<'window,T>{
                 }
             },
             winit::event::WindowEvent::CursorMoved { position ,..} => {
-                if let Some(f) = self.on_mouse_move_fn{
+                if let Some(f) = self.on_cursor_move_fn{
                     if let Some(state) = self.state.as_mut(){
-                        let event_handler = EventHandler{control_flow: event_loop};
+                        let event_handler: EventHandler = EventHandler{control_flow: event_loop};
                         if let Some(win) = self.window{
                             let size =  win.inner_size();
                             f(state,position,size,event_handler);
                         }
                         
+                    }
+                    
+                }
+            }
+            winit::event::WindowEvent::MouseInput { state, button,.. } => {
+                if let Some(f) = self.on_mouse_input_fn{
+                    if let Some(app_state) = self.state.as_mut(){
+                        let event_handler: EventHandler = EventHandler{control_flow: event_loop};
+                        f(app_state,button,state,event_handler);
                     }
                     
                 }
@@ -192,13 +216,19 @@ impl<'window,T> ApplicationHandler for App<'window,T>{
 
     fn device_event(
         &mut self,
-        _event_loop: &ActiveEventLoop,
+        event_loop: &ActiveEventLoop,
         _device_id: DeviceId,
         event: DeviceEvent,
     ) {
         match event{
-            DeviceEvent::MouseMotion {..} => {
-                
+            DeviceEvent::MouseMotion {delta} => {
+                if let Some(f) = self.on_mouse_move_fn{
+                    if let Some(state) = self.state.as_mut(){
+                        let event_handler = EventHandler{control_flow: event_loop};
+                        f(state,(delta.0 as f32,delta.1 as f32),event_handler);
+                    }
+                    
+                }
             },
             _ => {}
         }

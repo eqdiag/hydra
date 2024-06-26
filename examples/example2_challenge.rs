@@ -62,7 +62,7 @@ fn key_input(state: &mut State,key: hydra::app::Key,key_state: ElementState,even
     }
 }
 
-fn mouse_move(state: &mut State,position: hydra::app::Position,size: Size,event_handler: EventHandler){
+fn cursor_move(state: &mut State,position: hydra::app::Position,size: Size,event_handler: EventHandler){
     let r = position.x / size.width as f64;
     let b = position.y / size.height as f64;
     state.bg_color = Color{r: r,g: 0.0,b: b,a: 1.0};
@@ -75,7 +75,7 @@ fn main(){
     .update(update)
     .render(render)
     .on_key(key_input)
-    .on_mouse_move(mouse_move)
+    .on_cursor_move(cursor_move)
     .with_title("example2_renderpass".to_string())
     .run();
 }

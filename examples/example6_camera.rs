@@ -1,7 +1,7 @@
-use hydra::{app::{App, EventHandler, Frame}, context::Context, pipeline::RenderPipelineBuilder, texture, vertex::{ColoredVertex, TexturedVertex}};
+use hydra::{app::{App, EventHandler, Frame}, camera::{self, PerspectiveParams}, context::Context, pipeline::RenderPipelineBuilder, texture, vertex::{ColoredVertex, TexturedVertex}};
 use image::GenericImageView;
 use wgpu::{util::{BufferInitDescriptor, DeviceExt}, Backends, ImageCopyTexture, ImageCopyTextureBase, IndexFormat, ShaderModule, ShaderSource, VertexBufferLayout};
-use winit::{event::ElementState, keyboard::KeyCode::*, window};
+use winit::{event::{ElementState, MouseButton}, keyboard::KeyCode::*, window};
 
 const VERTICES: &[TexturedVertex] = &[
     TexturedVertex { position: [-0.0868241, 0.49240386, 0.0], uv: [0.4131759, 0.00759614], }, 
@@ -40,15 +40,14 @@ struct State{
     texture_bind_group: wgpu::BindGroup,
 
     //matrix stuff
-    projection: nalgebra_glm::Mat4,
+    camera: camera::Camera,
+    camera_controller: camera::FlyCameraController,
     matrix_bind_group: wgpu::BindGroup,
 
     //cpu side 4x4 matrix data
     cpu_matrix_uniform: MatrixUniform,
     //gpu side matrix data
     gpu_matrix_uniform: wgpu::Buffer,
-
-    pub t: f32,
 }
 
 fn init(_app: &App<State>,ctx: &Context) -> State{
@@ -71,19 +70,18 @@ fn init(_app: &App<State>,ctx: &Context) -> State{
 
     //uniform buffers
 
+    let camera = camera::Camera::new(camera::ProjectionMatrix::Perspective(PerspectiveParams{
+        aspect: ctx.config.width as f32 / ctx.config.height as f32,
+        fovy: 45.0,
+        near: 0.1,
+        far: 100.0
+    }));
+
+    let camera_controller = camera::FlyCameraController::default();
+
     let mut cpu_matrix_uniform = MatrixUniform::new();
 
-    let projection = nalgebra_glm::perspective(
-        ctx.config.width as f32 / ctx.config.height as f32,
-        45.0,
-        0.1,
-        100.0
-    );
-
-
-    let model = nalgebra_glm::translate(&nalgebra_glm::Mat4::identity(), &nalgebra_glm::Vec3::new(0.0, 0.0, -3.0));
-
-    cpu_matrix_uniform.matrix = (projection * model).into();
+    cpu_matrix_uniform.matrix = camera.get_view_proj_matrix().into();
 
     let gpu_matrix_uniform = ctx.device.create_buffer_init(&BufferInitDescriptor{
         label: Some("my gpu matrix buffer"),
@@ -214,11 +212,11 @@ fn init(_app: &App<State>,ctx: &Context) -> State{
         index_buffer,
         texture,
         texture_bind_group,
-        projection,
+        camera,
+        camera_controller,
         matrix_bind_group,
         cpu_matrix_uniform,
-        gpu_matrix_uniform,
-        t: 0.0
+        gpu_matrix_uniform
     }
 }
 
@@ -226,12 +224,14 @@ fn init(_app: &App<State>,ctx: &Context) -> State{
 
 fn update(state: &mut State,ctx: &Context){
 
-    state.t += 0.01;
-    let mut model = nalgebra_glm::rotate(&nalgebra_glm::Mat4::identity(),state.t,&nalgebra_glm::Vec3::new(0.0, 1.0, 0.0));
-    model = nalgebra_glm::translate(&nalgebra_glm::Mat4::identity(), &nalgebra_glm::Vec3::new(0.0, 0.0, -3.0)) * model;
 
-    state.cpu_matrix_uniform.matrix = (state.projection * model).into();
+    //update camera with controller
+    state.camera_controller.update_camera(&mut state.camera);
 
+    //update cpu camera buffer
+    state.cpu_matrix_uniform.matrix = state.camera.get_view_proj_matrix().into();
+
+    //update gpu camera buffer
     ctx.queue.write_buffer(&state.gpu_matrix_uniform, 0, bytemuck::cast_slice(&[state.cpu_matrix_uniform]));
     
 }
@@ -288,13 +288,20 @@ fn render(state: &State,ctx: &Context,frame: Frame){
 }
 
 fn key_input(state: &mut State,key: hydra::app::Key,key_state: ElementState,event_handler: EventHandler){
-    println!("key: {:#?}",key);
+    state.camera_controller.on_key_fn(key, key_state);
     match key{
         Escape => event_handler.exit(),
         _ => {}
     }
 }
 
+fn mouse_move(state: &mut State,delta: (f32,f32),event_handler: EventHandler){
+    state.camera_controller.on_mouse_move_fn(delta);
+}
+
+fn mouse_input(state: &mut State,mouse_button: MouseButton,button_state: ElementState,event_handler: EventHandler){
+    state.camera_controller.on_mouse_input_fn(button_state, mouse_button);
+}
 
 
 fn main(){
@@ -302,6 +309,8 @@ fn main(){
     .update(update)
     .render(render)
     .on_key(key_input)
+    .on_mouse_move(mouse_move)
+    .on_mouse_input(mouse_input)
     .with_title("example5_textures".to_string())
     .run();
 }
