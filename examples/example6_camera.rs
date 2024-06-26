@@ -311,6 +311,6 @@ fn main(){
     .on_key(key_input)
     .on_mouse_move(mouse_move)
     .on_mouse_input(mouse_input)
-    .with_title("example5_textures".to_string())
+    .with_title("example6_uniforms".to_string())
     .run();
 }

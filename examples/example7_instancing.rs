@@ -1,7 +1,8 @@
-use hydra::{app::{App, EventHandler, Frame}, context::Context, pipeline::RenderPipelineBuilder, texture, vertex::{ColoredVertex, TexturedVertex}};
+use hydra::{app::{App, EventHandler, Frame}, camera::{self, PerspectiveParams}, context::Context, pipeline::RenderPipelineBuilder, texture, vertex::{BasicInstanceData, ColoredVertex, TexturedVertex}};
 use image::GenericImageView;
+use nalgebra_glm::{identity, quat_cast, rotate_y, to_quat, translation, two_pi, vec3};
 use wgpu::{util::{BufferInitDescriptor, DeviceExt}, Backends, ImageCopyTexture, ImageCopyTextureBase, IndexFormat, ShaderModule, ShaderSource, VertexBufferLayout};
-use winit::{event::ElementState, keyboard::KeyCode::*, window};
+use winit::{event::{ElementState, MouseButton}, keyboard::KeyCode::*, window};
 
 const VERTICES: &[TexturedVertex] = &[
     TexturedVertex { position: [-0.0868241, 0.49240386, 0.0], uv: [0.4131759, 0.00759614], }, 
@@ -16,6 +17,8 @@ const INDICES: &[u16] = &[
     1, 2, 4,
     2, 3, 4,
 ];
+
+const NUM_INSTANCES: u32 = 10;
 
 #[repr(C)]
 // This is so we can store this in a buffer
@@ -32,6 +35,21 @@ impl MatrixUniform{
     }
 }
 
+struct Instance{
+    position: nalgebra_glm::Vec3,
+    rotation: nalgebra_glm::Quat
+}
+
+
+impl Instance{
+    pub fn to_matrix(&self) -> MatrixUniform{
+        MatrixUniform{
+            matrix: (translation(&self.position) * quat_cast(&self.rotation)).into()
+        }
+    }
+}
+
+
 struct State{
     pipeline: wgpu::RenderPipeline,
     vertex_buffer: wgpu::Buffer,
@@ -40,7 +58,8 @@ struct State{
     texture_bind_group: wgpu::BindGroup,
 
     //matrix stuff
-    projection: nalgebra_glm::Mat4,
+    camera: camera::Camera,
+    camera_controller: camera::FlyCameraController,
     matrix_bind_group: wgpu::BindGroup,
 
     //cpu side 4x4 matrix data
@@ -48,7 +67,10 @@ struct State{
     //gpu side matrix data
     gpu_matrix_uniform: wgpu::Buffer,
 
-    pub t: f32,
+    //instance stuff
+    instances: Vec<Instance>,
+    cpu_instance_data: Vec<MatrixUniform>,
+    gpu_instance_data: wgpu::Buffer
 }
 
 fn init(_app: &App<State>,ctx: &Context) -> State{
@@ -71,19 +93,35 @@ fn init(_app: &App<State>,ctx: &Context) -> State{
 
     //uniform buffers
 
+    let camera = camera::Camera::new(camera::ProjectionMatrix::Perspective(PerspectiveParams{
+        aspect: ctx.config.width as f32 / ctx.config.height as f32,
+        fovy: 45.0,
+        near: 0.1,
+        far: 100.0
+    }));
+
+    let camera_controller = camera::FlyCameraController::default();
+
     let mut cpu_matrix_uniform = MatrixUniform::new();
 
-    let projection = nalgebra_glm::perspective(
-        ctx.config.width as f32 / ctx.config.height as f32,
-        45.0,
-        0.1,
-        100.0
-    );
+    cpu_matrix_uniform.matrix = camera.get_view_proj_matrix().into();
 
 
-    let model = nalgebra_glm::translate(&nalgebra_glm::Mat4::identity(), &nalgebra_glm::Vec3::new(0.0, 0.0, -3.0));
+    let mut instances = vec![];
+    for i in 0..NUM_INSTANCES{
+        let angle = two_pi::<f32>() * (i as f32 / NUM_INSTANCES as f32);
+        instances.push(Instance{
+            position: vec3(0.1 * (i as f32), 0.0, -(i as f32)),
+            rotation: to_quat(&rotate_y(&identity(),angle)),
+        })
+    }
 
-    cpu_matrix_uniform.matrix = (projection * model).into();
+    let cpu_instance_data = instances.iter().map(Instance::to_matrix).collect::<Vec<_>>();
+    let gpu_instance_data = ctx.device.create_buffer_init(&BufferInitDescriptor{
+        label: Some("gpu instance data"),
+        contents: bytemuck::cast_slice(&cpu_instance_data),
+        usage: wgpu::BufferUsages::VERTEX,
+    });
 
     let gpu_matrix_uniform = ctx.device.create_buffer_init(&BufferInitDescriptor{
         label: Some("my gpu matrix buffer"),
@@ -200,10 +238,11 @@ fn init(_app: &App<State>,ctx: &Context) -> State{
     };
 
     let pipeline = RenderPipelineBuilder::new(ctx)
-        .with_shaders(ShaderSource::Wgsl(include_str!("../assets/example6_shader.wgsl").into()), "vs_main", "fs_main")
+        .with_shaders(ShaderSource::Wgsl(include_str!("../assets/example7_shader.wgsl").into()), "vs_main", "fs_main")
         .with_culling(None, wgpu::FrontFace::Ccw)
         .with_layout(pipeline_layout)
         .add_vertex_buffer_layout(TexturedVertex::layout())
+        .add_vertex_buffer_layout(BasicInstanceData::layout())
         .add_color_target_state(color_target)
         .build();
         
@@ -214,11 +253,14 @@ fn init(_app: &App<State>,ctx: &Context) -> State{
         index_buffer,
         texture,
         texture_bind_group,
-        projection,
+        camera,
+        camera_controller,
         matrix_bind_group,
         cpu_matrix_uniform,
         gpu_matrix_uniform,
-        t: 0.0
+        instances,
+        cpu_instance_data,
+        gpu_instance_data
     }
 }
 
@@ -226,12 +268,14 @@ fn init(_app: &App<State>,ctx: &Context) -> State{
 
 fn update(state: &mut State,ctx: &Context){
 
-    state.t += 0.01;
-    let mut model = nalgebra_glm::rotate(&nalgebra_glm::Mat4::identity(),state.t,&nalgebra_glm::Vec3::new(0.0, 1.0, 0.0));
-    model = nalgebra_glm::translate(&nalgebra_glm::Mat4::identity(), &nalgebra_glm::Vec3::new(0.0, 0.0, -3.0)) * model;
 
-    state.cpu_matrix_uniform.matrix = (state.projection * model).into();
+    //update camera with controller
+    state.camera_controller.update_camera(&mut state.camera);
 
+    //update cpu camera buffer
+    state.cpu_matrix_uniform.matrix = state.camera.get_view_proj_matrix().into();
+
+    //update gpu camera buffer
     ctx.queue.write_buffer(&state.gpu_matrix_uniform, 0, bytemuck::cast_slice(&[state.cpu_matrix_uniform]));
     
 }
@@ -265,21 +309,25 @@ fn render(state: &State,ctx: &Context,frame: Frame){
             occlusion_query_set: None,
         });
 
+        //bind pipeline
+        render_pass.set_pipeline(&state.pipeline);
+
         //bind resources (buffers,images)
 
         //buffers
         render_pass.set_vertex_buffer(0, state.vertex_buffer.slice(..));
         render_pass.set_index_buffer(state.index_buffer.slice(..),IndexFormat::Uint16);
 
+        //set instance vertex buffer
+        render_pass.set_vertex_buffer(1,state.gpu_instance_data.slice(..));
 
         //bind groups
         render_pass.set_bind_group(0,&state.texture_bind_group, &[]);
         render_pass.set_bind_group(1,&state.matrix_bind_group,&[]);
 
-        //bind pipeline
-        render_pass.set_pipeline(&state.pipeline);
+        
         //make render calls
-        render_pass.draw_indexed(0..(INDICES.len() as u32),0, 0..1);
+        render_pass.draw_indexed(0..(INDICES.len() as u32),0, 0..NUM_INSTANCES);
     }
 
     ctx.queue.submit(std::iter::once(encoder.finish()));
@@ -288,13 +336,20 @@ fn render(state: &State,ctx: &Context,frame: Frame){
 }
 
 fn key_input(state: &mut State,key: hydra::app::Key,key_state: ElementState,event_handler: EventHandler){
-    println!("key: {:#?}",key);
+    state.camera_controller.on_key_fn(key, key_state);
     match key{
         Escape => event_handler.exit(),
         _ => {}
     }
 }
 
+fn mouse_move(state: &mut State,delta: (f32,f32),event_handler: EventHandler){
+    state.camera_controller.on_mouse_move_fn(delta);
+}
+
+fn mouse_input(state: &mut State,mouse_button: MouseButton,button_state: ElementState,event_handler: EventHandler){
+    state.camera_controller.on_mouse_input_fn(button_state, mouse_button);
+}
 
 
 fn main(){
@@ -302,6 +357,8 @@ fn main(){
     .update(update)
     .render(render)
     .on_key(key_input)
-    .with_title("example5_textures".to_string())
+    .on_mouse_move(mouse_move)
+    .on_mouse_input(mouse_input)
+    .with_title("example7_instancing".to_string())
     .run();
 }

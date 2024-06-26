@@ -20,7 +20,7 @@
     - context
     - app
 - util (higher-level abstractions built up on wgpu)
-    - [ ] camera
+    - [x] camera
     - [ ] mesh
     - [ ] material
     - [ ] model
