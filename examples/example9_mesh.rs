@@ -1,15 +1,16 @@
 use hydra::{app::{App, EventHandler, Frame}, camera::{self, PerspectiveParams}, context::Context, pipeline::RenderPipelineBuilder, texture, vertex::{BasicInstanceData, ColoredVertex, TexturedVertex}};
 use image::GenericImageView;
 use nalgebra_glm::{identity, quat_cast, rotate_y, to_quat, translation, two_pi, vec3};
+use tobj::LoadOptions;
 use wgpu::{util::{BufferInitDescriptor, DeviceExt}, Backends, ImageCopyTexture, ImageCopyTextureBase, IndexFormat, ShaderModule, ShaderSource, VertexBufferLayout};
 use winit::{event::{ElementState, MouseButton}, keyboard::KeyCode::*, window};
 
-const VERTICES: &[TexturedVertex] = &[
-    TexturedVertex { position: [-0.0868241, 0.49240386, 0.0], uv: [0.4131759, 0.00759614], }, 
-    TexturedVertex { position: [-0.49513406, 0.06958647, 0.0], uv: [0.0048659444, 0.43041354], }, 
-    TexturedVertex { position: [-0.21918549, -0.44939706, 0.0], uv: [0.28081453, 0.949397], }, 
-    TexturedVertex { position: [0.35966998, -0.3473291, 0.0], uv: [0.85967, 0.84732914], }, 
-    TexturedVertex { position: [0.44147372, 0.2347359, 0.0], uv: [0.9414737, 0.2652641], }, 
+const VERTICES: &[ColoredVertex] = &[
+    ColoredVertex { position: [-0.0868241, 0.49240386, 0.0], color: [1.0,0.0,0.0], }, 
+    ColoredVertex { position: [-0.49513406, 0.06958647, 0.0], color: [1.0,0.0,0.0], }, 
+    ColoredVertex { position: [-0.21918549, -0.44939706, 0.0], color: [1.0,0.0,0.0], }, 
+    ColoredVertex { position: [0.35966998, -0.3473291, 0.0], color: [1.0,0.0,0.0], }, 
+    ColoredVertex { position: [0.44147372, 0.2347359, 0.0], color: [1.0,0.0,0.0], }, 
 ];
 
 const INDICES: &[u16] = &[
@@ -54,6 +55,9 @@ struct State{
     pipeline: wgpu::RenderPipeline,
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
+
+    num_indices: u32,
+
     texture: texture::Texture,
     texture_bind_group: wgpu::BindGroup,
 
@@ -80,21 +84,82 @@ struct State{
 
 fn init(_app: &App<State>,ctx: &Context) -> State{
 
+    let mut vertices = vec![];
+    /*vertices.push(ColoredVertex { position: [-0.0868241, 0.49240386, 0.0], color: [1.0,0.0,0.0], });
+    vertices.push(ColoredVertex { position: [-0.49513406, 0.06958647, 0.0], color: [1.0,0.0,0.0], });
+    vertices.push(ColoredVertex { position: [-0.21918549, -0.44939706, 0.0], color: [1.0,0.0,0.0], });
+    */
+
+    //let mut indices: Vec<u16> = vec![0,1,2];
+    let mut indices: Vec<u16> = vec![];
+
+    let (models,materials) = tobj::load_obj("assets/cube.obj",&tobj::GPU_LOAD_OPTIONS).expect("Couldn't load obj file!");
+
+    for (i,model) in models.iter().enumerate(){
+        let mesh = &model.mesh;
+        /*println!("loading mesh: {}",model.name);
+        println!("num indices: {}",mesh.indices.len());
+        println!("loading vertices: {}",mesh.positions.len());*/
+
+        for j in 0..mesh.indices.len(){
+
+            let idx = mesh.indices[j] as usize;
+
+
+            let position = [
+                mesh.positions[3*idx],
+                mesh.positions[3*idx+1],
+                mesh.positions[3*idx+2]
+            ];
+
+            //println!("POS {:?}",position);
+
+            let mut normal: [f32;3]  = [0.0,0.0,0.0];
+
+            if !mesh.normals.is_empty(){
+                normal[0] = mesh.normals[3*idx];
+                normal[1] = mesh.normals[3*idx + 1];
+                normal[2] = mesh.normals[3*idx + 2];
+                //println!("normal {:#?}",normal);
+            }
+
+            vertices.push(ColoredVertex{
+                position,
+                color: normal
+            });
+            indices.push(j as u16);
+
+            //println!("index j {}",j);
+        }
+    }
+
+    //let num_indices = indices.len() as u32;
+    /*let num_indices = INDICES.len() as u32;*/
+    //let num_indices = indices.len() as u32;
+
+
+    //println!("{:#?}",VERTICES);
+    //println!("{:#?}",INDICES);
+    let num_indices = indices.len() as u32;
+
 
     //create buffers
     let vertex_buffer = ctx.device.create_buffer_init(
         &wgpu::util::BufferInitDescriptor {
             label: Some("my vertex buffer"),
-            contents: bytemuck::cast_slice(VERTICES),
+            contents: bytemuck::cast_slice(vertices.as_slice()),
             usage: wgpu::BufferUsages::VERTEX,
         }
     );
 
     let index_buffer = ctx.device.create_buffer_init(&wgpu::util::BufferInitDescriptor{
         label: Some("my index buffer"),
-        contents: bytemuck::cast_slice(INDICES),
+        contents: bytemuck::cast_slice(indices.as_slice()),
         usage: wgpu::BufferUsages::INDEX,
     });
+
+    //create mesh here
+
 
     //uniform buffers
 
@@ -266,10 +331,10 @@ fn init(_app: &App<State>,ctx: &Context) -> State{
     };
 
     let pipeline = RenderPipelineBuilder::new(ctx)
-        .with_shaders(ShaderSource::Wgsl(include_str!("../assets/example7_shader.wgsl").into()), "vs_main", "fs_main")
+        .with_shaders(ShaderSource::Wgsl(include_str!("../assets/example9_shader.wgsl").into()), "vs_main", "fs_main")
         .with_culling(None, wgpu::FrontFace::Ccw)
         .with_layout(pipeline_layout)
-        .add_vertex_buffer_layout(TexturedVertex::layout())
+        .add_vertex_buffer_layout(ColoredVertex::layout())
         .add_vertex_buffer_layout(BasicInstanceData::layout())
         .add_color_target_state(color_target)
         .with_depth_stencil_state(wgpu::DepthStencilState{
@@ -286,6 +351,7 @@ fn init(_app: &App<State>,ctx: &Context) -> State{
         pipeline,
         vertex_buffer,
         index_buffer,
+        num_indices,
         texture,
         texture_bind_group,
         depth_texture,
@@ -347,7 +413,7 @@ fn render(state: &State,ctx: &Context,frame: Frame){
                     //For multisampling
                     resolve_target: None,
                     ops: wgpu::Operations{
-                        load: wgpu::LoadOp::Clear(wgpu::Color::RED),
+                        load: wgpu::LoadOp::Clear(wgpu::Color{ r: 0.5,b: 0.5,g: 0.5,a: 1.0 }),
                         store: wgpu::StoreOp::Store,
                     },
                 })
@@ -382,7 +448,7 @@ fn render(state: &State,ctx: &Context,frame: Frame){
 
         
         //make render calls
-        render_pass.draw_indexed(0..(INDICES.len() as u32),0, 0..NUM_INSTANCES);
+        render_pass.draw_indexed(0..state.num_indices,0, 0..NUM_INSTANCES);
     }
 
     ctx.queue.submit(std::iter::once(encoder.finish()));
@@ -444,6 +510,6 @@ fn main(){
     .on_key(key_input)
     .on_mouse_move(mouse_move)
     .on_mouse_input(mouse_input)
-    .with_title("example8_depth".to_string())
+    .with_title("example9_mesh".to_string())
     .run();
 }

@@ -7,6 +7,7 @@ pub struct ColoredVertex{
     pub color: [f32;3]
 }
 
+
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct TexturedVertex{

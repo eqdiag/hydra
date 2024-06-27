@@ -9,7 +9,7 @@
 - [x] Uniforms and camera (example6_uniforms.rs)
 - [x] Instancing (example7_instancing.rs)
 - [x] Depth buffer (example8_depth.rs)
-- [ ] Meshes (example9_mesh.rs)
+- [x] Meshes (example9_mesh.rs)
 
 - [ ] refactor asset folder (images/models/shader)
 
@@ -22,7 +22,7 @@
     - app
 - util (higher-level abstractions built up on wgpu)
     - [x] camera
-    - [ ] mesh
+    - [x] mesh
     - [ ] material
     - [ ] model
     - [ ] ui (egui)
