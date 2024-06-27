@@ -7,10 +7,11 @@
 - [x] Buffers & Indices (example4_buffers.rs)
 - [x] Textures & Bind Groups (example5_textures.rs)
 - [x] Uniforms and camera (example6_uniforms.rs)
-
-- [ ] Instancing (example7_instancing.rs)
-- [ ] Depth buffer (example8_depth.rs)
+- [x] Instancing (example7_instancing.rs)
+- [x] Depth buffer (example8_depth.rs)
 - [ ] Meshes (example9_mesh.rs)
+
+- [ ] refactor asset folder (images/models/shader)
 
 ## Library structure
 - core (wgpu basic structure helpers for common use cases)   

@@ -1,6 +1,6 @@
 use std::num::NonZeroU32;
 
-use wgpu::{core::id::markers::PipelineLayout, Face, FrontFace, ShaderModule, ShaderSource, VertexBufferLayout};
+use wgpu::{core::id::markers::PipelineLayout, hal::DepthStencilAttachment, Face, FrontFace, ShaderModule, ShaderSource, VertexBufferLayout};
 
 use crate::context;
 
@@ -78,6 +78,11 @@ impl<'a> RenderPipelineBuilder<'a>{
     pub fn with_culling(mut self,cull_mode: Option<Face>,front_face: FrontFace) -> Self{
         self.primitive.cull_mode = cull_mode;
         self.primitive.front_face = front_face;
+        self
+    }
+
+    pub fn with_depth_stencil_state(mut self,state: wgpu::DepthStencilState) -> Self{
+        self.depth_stencil = Some(state);
         self
     }
 

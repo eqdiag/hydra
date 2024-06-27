@@ -287,6 +287,17 @@ fn render(state: &State,ctx: &Context,frame: Frame){
 
 }
 
+fn resize(state: &mut State,ctx: &Context,width: u32,height: u32,event_handler: EventHandler){
+    if width > 0 && height > 0{
+        state.camera.update_to_perspective(PerspectiveParams{
+            aspect: width as f32 / height as f32,
+            fovy: 45.0,
+            near: 0.1,
+            far: 100.0,
+        })
+    }
+}
+
 fn key_input(state: &mut State,key: hydra::app::Key,key_state: ElementState,event_handler: EventHandler){
     state.camera_controller.on_key_fn(key, key_state);
     match key{
@@ -304,10 +315,13 @@ fn mouse_input(state: &mut State,mouse_button: MouseButton,button_state: Element
 }
 
 
+
+
 fn main(){
     App::new(init)
     .update(update)
     .render(render)
+    .on_window_resize(resize)
     .on_key(key_input)
     .on_mouse_move(mouse_move)
     .on_mouse_input(mouse_input)

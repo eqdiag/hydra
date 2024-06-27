@@ -57,6 +57,9 @@ struct State{
     texture: texture::Texture,
     texture_bind_group: wgpu::BindGroup,
 
+    depth_texture: wgpu::Texture,
+    depth_texture_view: wgpu::TextureView,
+
     //matrix stuff
     camera: camera::Camera,
     camera_controller: camera::FlyCameraController,
@@ -133,9 +136,32 @@ fn init(_app: &App<State>,ctx: &Context) -> State{
     });
 
     //create images & textures
+
+    //simple diffuse texture
     let image_bytes = include_bytes!("../assets/happy_tree.png");
     let texture = texture::Texture::from_bytes(ctx, image_bytes).unwrap();
-    
+
+    //depth texture    
+    //same as swapchain texture
+    let depth_texture_size = wgpu::Extent3d{
+        width: ctx.size.width,
+        height: ctx.size.height,
+        depth_or_array_layers:1,
+    };
+
+    let depth_texture = ctx.device.create_texture(&wgpu::TextureDescriptor{
+        label: Some("my depth texture"),
+        size: depth_texture_size,
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Depth32Float,
+        //just like a color target, is an output of a pipeline
+        usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+        view_formats: &[]
+    });
+
+    let depth_texture_view = depth_texture.create_view(&wgpu::TextureViewDescriptor::default());
 
     //create samplers
     let sampler = ctx.device.create_sampler(&wgpu::SamplerDescriptor{
@@ -246,6 +272,13 @@ fn init(_app: &App<State>,ctx: &Context) -> State{
         .add_vertex_buffer_layout(TexturedVertex::layout())
         .add_vertex_buffer_layout(BasicInstanceData::layout())
         .add_color_target_state(color_target)
+        .with_depth_stencil_state(wgpu::DepthStencilState{
+            format: wgpu::TextureFormat::Depth32Float,
+            depth_write_enabled: true,
+            depth_compare: wgpu::CompareFunction::Less,
+            stencil: wgpu::StencilState::default(),
+            bias: wgpu::DepthBiasState::default(),
+        })
         .build();
         
 
@@ -255,6 +288,8 @@ fn init(_app: &App<State>,ctx: &Context) -> State{
         index_buffer,
         texture,
         texture_bind_group,
+        depth_texture,
+        depth_texture_view,
         camera,
         camera_controller,
         matrix_bind_group,
@@ -317,7 +352,14 @@ fn render(state: &State,ctx: &Context,frame: Frame){
                     },
                 })
             ],
-            depth_stencil_attachment: None,
+            depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment{
+                view: &state.depth_texture_view,
+                depth_ops: Some(wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(1.0),
+                    store: wgpu::StoreOp::Store,
+                }),
+                stencil_ops: None,
+            }),
             timestamp_writes: None,
             occlusion_query_set: None,
         });
@@ -357,6 +399,24 @@ fn resize(state: &mut State,ctx: &Context,width: u32,height: u32,event_handler: 
             far: 100.0,
         })
     }
+
+    //recreate depth texture and view
+    state.depth_texture = ctx.device.create_texture(&wgpu::TextureDescriptor{
+        label: Some("my depth texture"),
+        size: wgpu::Extent3d{
+            width,
+            height,
+            depth_or_array_layers: 1,
+        },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Depth32Float,
+        //just like a color target, is an output of a pipeline
+        usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+        view_formats: &[]
+    });
+    state.depth_texture_view = state.depth_texture.create_view(&wgpu::TextureViewDescriptor::default());
 }
 
 fn key_input(state: &mut State,key: hydra::app::Key,key_state: ElementState,event_handler: EventHandler){
@@ -384,6 +444,6 @@ fn main(){
     .on_key(key_input)
     .on_mouse_move(mouse_move)
     .on_mouse_input(mouse_input)
-    .with_title("example7_challenge".to_string())
+    .with_title("example8_depth".to_string())
     .run();
 }

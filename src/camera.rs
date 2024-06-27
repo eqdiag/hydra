@@ -10,6 +10,7 @@ pub struct PerspectiveParams{
     pub far: f32
 }
 
+
 pub struct OrthographicParams{
     pub left: f32,
     pub right: f32,
@@ -53,16 +54,26 @@ impl Camera{
     ) -> Self{
         let projection_matrix = match projection{
             ProjectionMatrix::Perspective(PerspectiveParams{aspect,fovy,near,far}) => {
-                nalgebra_glm::perspective(aspect, fovy, near, far)
+                //using right-hand coord system, map depth to [0,1] for ndc not [-1,1]
+                nalgebra_glm::perspective_rh_zo(aspect, fovy, near, far)
             },
             ProjectionMatrix::Orthographic(OrthographicParams{left,right,top,bottom,near,far}) => {
-                nalgebra_glm::ortho(left, right, bottom, top, near, far)
+                //using right-hand coord system, map depth to [0,1] for ndc not [-1,1]
+                nalgebra_glm::ortho_rh_zo(left, right, bottom, top, near, far)
             },
         };
         Self{
             projection_matrix,
             ..Default::default()
         }
+    }
+
+    pub fn update_to_perspective(&mut self,params: PerspectiveParams){
+        self.projection_matrix = nalgebra_glm::perspective_rh_zo(params.aspect, params.fovy, params.near, params.far);
+    }
+
+    pub fn update_to_orthographic(&mut self,params: OrthographicParams){
+        self.projection_matrix = nalgebra_glm::ortho_rh_zo(params.left, params.right, params.bottom, params.top, params.near, params.far);
     }
 
     pub fn get_view_proj_matrix(&self) -> nalgebra_glm::Mat4{

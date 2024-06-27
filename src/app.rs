@@ -31,6 +31,8 @@ pub struct App<'a,T>{
     init_fn: fn(&App<T>,ctx: &Context) -> T,
     update_fn: Option<fn(state: &mut T,ctx: &Context)>,
     render_fn: Option<fn(state: &T,ctx: &Context,frame: Frame)>,
+    on_window_resize: Option<fn(state: &mut T,ctx: &Context,width: u32,height: u32, event_handler: EventHandler)>,
+
 
     //input functions
     on_key_fn: Option<fn(state: &mut T,key: Key,key_state: ElementState, event_handler: EventHandler)>,
@@ -53,6 +55,7 @@ impl<'window,T> App<'window,T>{
             init_fn: init,
             update_fn: None,
             render_fn: None,
+            on_window_resize: None,
             on_key_fn: None,
             on_cursor_move_fn: None,
             on_mouse_move_fn: None,
@@ -78,6 +81,12 @@ impl<'window,T> App<'window,T>{
         self.render_fn = Some(f);
         self
     }
+
+    pub fn on_window_resize(mut self,f: fn(state: &mut T,ctx: &Context,width: u32,height: u32, event_handler: EventHandler)) -> Self{
+        self.on_window_resize = Some(f);
+        self
+    }
+
 
     pub fn on_key(mut self,f: fn(state: &mut T,key: Key,key_state: ElementState,event_handler: EventHandler)) -> Self{
         self.on_key_fn = Some(f);
@@ -183,10 +192,24 @@ impl<'window,T> ApplicationHandler for App<'window,T>{
                     
                 }
             }
-            winit::event::WindowEvent::Resized(PhysicalSize{width,height}) => {
+            winit::event::WindowEvent::Resized(size @ PhysicalSize{width,height}) => {
                 println!("{}",&format!("Resized : ({width},{height})")[..].green());
+                if width > 0 && height > 0{
+                    let ctx = self.context.as_mut().unwrap();
+                    ctx.size = size;
+                    ctx.config.width = width;
+                    ctx.config.height = height;
+                    ctx.surface.configure(&ctx.device,&ctx.config);
+                }
                 if let Some(win) = &self.window{
                     win.request_redraw();
+                }
+                //call user provided resize function
+                if let Some(f) = self.on_window_resize{
+                    if let Some(state) = self.state.as_mut(){
+                        let event_handler: EventHandler = EventHandler{control_flow: event_loop};
+                        f(state,self.context.as_ref().unwrap(), width,height,event_handler);
+                    }
                 }
             }
             winit::event::WindowEvent::RedrawRequested => {
