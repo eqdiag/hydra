@@ -11,8 +11,6 @@
 - [x] Depth buffer (example8_depth.rs)
 - [x] Meshes (example9_mesh.rs)
 
-- [ ] refactor asset folder (images/models/shader)
-
 ## Library structure
 - core (wgpu basic structure helpers for common use cases)   
     - pipeline
@@ -23,16 +21,14 @@
 - util (higher-level abstractions built up on wgpu)
     - [x] camera
     - [x] mesh
-    - [ ] material
-    - [ ] model
-    - [ ] ui (egui)
+    - [ ] ui (egui) (seems useful to get started https://github.com/ejb004/egui-wgpu-demo/blob/master/src/gui.rs)
 
 
 
 ## Features
 - [ ] Multiple cameras
     - [ ] Arc camera
-    - [ ] Fly camera
+    - [x] Fly camera
 - [ ] Gradient sky background (compute)
 - [ ] Blinn-Phong model
 - [ ] Gamma correction
