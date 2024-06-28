@@ -17,7 +17,7 @@
     - texture
     - vertex
     - context
-    - app
+    - apps
 - util (higher-level abstractions built up on wgpu)
     - [x] camera
     - [x] mesh

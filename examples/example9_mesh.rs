@@ -1,23 +1,9 @@
-use hydra::{app::{App, EventHandler, Frame}, camera::{self, PerspectiveParams}, context::Context, pipeline::RenderPipelineBuilder, texture, vertex::{BasicInstanceData, ColoredVertex, TexturedVertex}};
+use hydra::{app::{App, EventHandler, Frame}, camera::{self, PerspectiveParams}, context::Context, mesh::Mesh, pipeline::RenderPipelineBuilder, texture, vertex::{BasicInstanceData, ColoredVertex, TexturedVertex, VertexLayout}};
 use image::GenericImageView;
 use nalgebra_glm::{identity, quat_cast, rotate_y, to_quat, translation, two_pi, vec3};
-use tobj::LoadOptions;
 use wgpu::{util::{BufferInitDescriptor, DeviceExt}, Backends, ImageCopyTexture, ImageCopyTextureBase, IndexFormat, ShaderModule, ShaderSource, VertexBufferLayout};
 use winit::{event::{ElementState, MouseButton}, keyboard::KeyCode::*, window};
 
-const VERTICES: &[ColoredVertex] = &[
-    ColoredVertex { position: [-0.0868241, 0.49240386, 0.0], color: [1.0,0.0,0.0], }, 
-    ColoredVertex { position: [-0.49513406, 0.06958647, 0.0], color: [1.0,0.0,0.0], }, 
-    ColoredVertex { position: [-0.21918549, -0.44939706, 0.0], color: [1.0,0.0,0.0], }, 
-    ColoredVertex { position: [0.35966998, -0.3473291, 0.0], color: [1.0,0.0,0.0], }, 
-    ColoredVertex { position: [0.44147372, 0.2347359, 0.0], color: [1.0,0.0,0.0], }, 
-];
-
-const INDICES: &[u16] = &[
-    0, 1, 4,
-    1, 2, 4,
-    2, 3, 4,
-];
 
 const NUM_INSTANCES: u32 = 10;
 
@@ -53,10 +39,11 @@ impl Instance{
 
 struct State{
     pipeline: wgpu::RenderPipeline,
+    mesh: Mesh<ColoredVertex>,
+    num_indices: u32,
+
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
-
-    num_indices: u32,
 
     texture: texture::Texture,
     texture_bind_group: wgpu::BindGroup,
@@ -84,81 +71,26 @@ struct State{
 
 fn init(_app: &App<State>,ctx: &Context) -> State{
 
-    let mut vertices = vec![];
-    /*vertices.push(ColoredVertex { position: [-0.0868241, 0.49240386, 0.0], color: [1.0,0.0,0.0], });
-    vertices.push(ColoredVertex { position: [-0.49513406, 0.06958647, 0.0], color: [1.0,0.0,0.0], });
-    vertices.push(ColoredVertex { position: [-0.21918549, -0.44939706, 0.0], color: [1.0,0.0,0.0], });
-    */
 
-    //let mut indices: Vec<u16> = vec![0,1,2];
-    let mut indices: Vec<u16> = vec![];
+    let mesh = Mesh::from_obj("assets/bunny.obj").unwrap();
 
-    let (models,materials) = tobj::load_obj("assets/cube.obj",&tobj::GPU_LOAD_OPTIONS).expect("Couldn't load obj file!");
-
-    for (i,model) in models.iter().enumerate(){
-        let mesh = &model.mesh;
-        /*println!("loading mesh: {}",model.name);
-        println!("num indices: {}",mesh.indices.len());
-        println!("loading vertices: {}",mesh.positions.len());*/
-
-        for j in 0..mesh.indices.len(){
-
-            let idx = mesh.indices[j] as usize;
-
-
-            let position = [
-                mesh.positions[3*idx],
-                mesh.positions[3*idx+1],
-                mesh.positions[3*idx+2]
-            ];
-
-            //println!("POS {:?}",position);
-
-            let mut normal: [f32;3]  = [0.0,0.0,0.0];
-
-            if !mesh.normals.is_empty(){
-                normal[0] = mesh.normals[3*idx];
-                normal[1] = mesh.normals[3*idx + 1];
-                normal[2] = mesh.normals[3*idx + 2];
-                //println!("normal {:#?}",normal);
-            }
-
-            vertices.push(ColoredVertex{
-                position,
-                color: normal
-            });
-            indices.push(j as u16);
-
-            //println!("index j {}",j);
-        }
-    }
-
-    //let num_indices = indices.len() as u32;
-    /*let num_indices = INDICES.len() as u32;*/
-    //let num_indices = indices.len() as u32;
-
-
-    //println!("{:#?}",VERTICES);
-    //println!("{:#?}",INDICES);
-    let num_indices = indices.len() as u32;
+    let num_indices = mesh.num_indices();
 
 
     //create buffers
     let vertex_buffer = ctx.device.create_buffer_init(
         &wgpu::util::BufferInitDescriptor {
             label: Some("my vertex buffer"),
-            contents: bytemuck::cast_slice(vertices.as_slice()),
+            contents: bytemuck::cast_slice(mesh.vertices.as_slice()),
             usage: wgpu::BufferUsages::VERTEX,
         }
     );
 
     let index_buffer = ctx.device.create_buffer_init(&wgpu::util::BufferInitDescriptor{
         label: Some("my index buffer"),
-        contents: bytemuck::cast_slice(indices.as_slice()),
+        contents: bytemuck::cast_slice(mesh.indices.as_slice()),
         usage: wgpu::BufferUsages::INDEX,
     });
-
-    //create mesh here
 
 
     //uniform buffers
@@ -349,6 +281,7 @@ fn init(_app: &App<State>,ctx: &Context) -> State{
 
     State{
         pipeline,
+        mesh,
         vertex_buffer,
         index_buffer,
         num_indices,

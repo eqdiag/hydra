@@ -1,4 +1,4 @@
-use hydra::{app::{App, EventHandler, Frame}, camera::{self, PerspectiveParams}, context::Context, pipeline::RenderPipelineBuilder, texture, vertex::{BasicInstanceData, ColoredVertex, TexturedVertex}};
+use hydra::{app::{App, EventHandler, Frame}, camera::{self, PerspectiveParams}, context::Context, pipeline::RenderPipelineBuilder, texture, vertex::{BasicInstanceData, ColoredVertex, TexturedVertex, VertexLayout}};
 use image::GenericImageView;
 use nalgebra_glm::{identity, quat_cast, rotate_y, to_quat, translation, two_pi, vec3};
 use tobj::LoadOptions;
@@ -79,14 +79,14 @@ struct MainPass{
     pub t: f32
 }
 
-struct ShadowViewPass{
+struct DepthViewPass{
     pub pipeline: wgpu::RenderPipeline,
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,
     pub num_indices: u32,
     pub depth_sampler: wgpu::Sampler,
     pub depth_texture_bind_group_layout: wgpu::BindGroupLayout,
-    pub shadow_texture_bind_group: wgpu::BindGroup,
+    pub depth_texture_bind_group: wgpu::BindGroup,
 }
 
 impl MainPass{
@@ -362,19 +362,19 @@ impl MainPass{
     }
 }
 
-impl ShadowViewPass{
+impl DepthViewPass{
     pub fn new(ctx: &Context,depth_view: &TextureView) -> Self{
 
         //vertex buffer
         let vertex_buffer = ctx.device.create_buffer_init(&BufferInitDescriptor{
-            label: Some("shadow quad vertices"),
+            label: Some("depth quad vertices"),
             contents: bytemuck::cast_slice(&QUAD_VERTICES),
             usage: wgpu::BufferUsages::VERTEX,
         });
 
         //index buffer
         let index_buffer = ctx.device.create_buffer_init(&BufferInitDescriptor{
-            label: Some("shadow quad indices"),
+            label: Some("depth quad indices"),
             contents: bytemuck::cast_slice(&QUAD_INDICES),
             usage: wgpu::BufferUsages::INDEX,
         });
@@ -396,7 +396,7 @@ impl ShadowViewPass{
 
         //texture bind group
         let bg_layout = ctx.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor{
-            label: Some("shadow bind grp layout"),
+            label: Some("depth bind grp layout"),
             entries: &[
                 //texture itself
                 BindGroupLayoutEntry{
@@ -421,8 +421,8 @@ impl ShadowViewPass{
             ],
         });
 
-        let shadow_texture_bind_group = ctx.device.create_bind_group(&BindGroupDescriptor{
-            label: Some("shadow bind group"),
+        let depth_texture_bind_group = ctx.device.create_bind_group(&BindGroupDescriptor{
+            label: Some("depth bind group"),
             layout: &bg_layout,
             entries: &[
                 BindGroupEntry{
@@ -459,19 +459,19 @@ impl ShadowViewPass{
             .build();
 
 
-        Self { pipeline, vertex_buffer, index_buffer, num_indices,depth_sampler, depth_texture_bind_group_layout: bg_layout, shadow_texture_bind_group}
+        Self { pipeline, vertex_buffer, index_buffer, num_indices,depth_sampler, depth_texture_bind_group_layout: bg_layout, depth_texture_bind_group}
     }
 }
 
 struct State{
     main_pass: MainPass,
-    depth_pass: ShadowViewPass,
+    depth_pass: DepthViewPass,
 }
 
 fn init(_app: &App<State>,ctx: &Context) -> State{
 
     let main_pass = MainPass::new(ctx);
-    let depth_pass = ShadowViewPass::new(ctx,&main_pass.depth_texture_view);
+    let depth_pass = DepthViewPass::new(ctx,&main_pass.depth_texture_view);
 
     State{
         main_pass,
@@ -594,7 +594,7 @@ fn render(state: &State,ctx: &Context,frame: Frame){
 
 
         //bind groups
-        render_pass.set_bind_group(0,&state.depth_pass.shadow_texture_bind_group, &[]);
+        render_pass.set_bind_group(0,&state.depth_pass.depth_texture_bind_group, &[]);
 
         
         //make render calls
@@ -636,8 +636,8 @@ fn resize(state: &mut State,ctx: &Context,width: u32,height: u32,event_handler: 
     state.main_pass.depth_texture_view = state.main_pass.depth_texture.create_view(&wgpu::TextureViewDescriptor::default());
 
     //recreate deph texture bind group
-    state.depth_pass.shadow_texture_bind_group = ctx.device.create_bind_group(&BindGroupDescriptor{
-        label: Some("shadow bind group"),
+    state.depth_pass.depth_texture_bind_group = ctx.device.create_bind_group(&BindGroupDescriptor{
+        label: Some("depth bind group"),
         layout: &state.depth_pass.depth_texture_bind_group_layout,
         entries: &[
             BindGroupEntry{
@@ -684,5 +684,4 @@ fn main(){
 
 /*
     - remove color attachment from first pass
-    - rename shadow stuff to depth
 */

@@ -1,4 +1,4 @@
-use hydra::{app::{App, EventHandler, Frame}, context::Context, pipeline::RenderPipelineBuilder, vertex::ColoredVertex};
+use hydra::{app::{App, EventHandler, Frame}, context::Context, pipeline::RenderPipelineBuilder, vertex::{ColoredVertex, VertexLayout}};
 use wgpu::{util::DeviceExt, Backends, ShaderModule, ShaderSource, VertexBufferLayout};
 use winit::{event::ElementState, keyboard::KeyCode::*, window};
 

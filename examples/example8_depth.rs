@@ -1,4 +1,4 @@
-use hydra::{app::{App, EventHandler, Frame}, camera::{self, PerspectiveParams}, context::Context, pipeline::RenderPipelineBuilder, texture, vertex::{BasicInstanceData, ColoredVertex, TexturedVertex}};
+use hydra::{app::{App, EventHandler, Frame}, camera::{self, PerspectiveParams}, context::Context, pipeline::RenderPipelineBuilder, texture, vertex::{BasicInstanceData, ColoredVertex, TexturedVertex, VertexLayout}};
 use image::GenericImageView;
 use nalgebra_glm::{identity, quat_cast, rotate_y, to_quat, translation, two_pi, vec3};
 use wgpu::{util::{BufferInitDescriptor, DeviceExt}, Backends, ImageCopyTexture, ImageCopyTextureBase, IndexFormat, ShaderModule, ShaderSource, VertexBufferLayout};

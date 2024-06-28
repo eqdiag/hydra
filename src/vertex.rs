@@ -1,5 +1,25 @@
 use wgpu::VertexBufferLayout;
 
+pub trait VertexLayout{
+    fn new() -> Self;
+    fn layout() -> VertexBufferLayout<'static>;
+    fn add_position(&mut self,position: [f32;3]);
+    fn try_add_normal(&mut self,normal: [f32;3]) -> Result<(),&str>;
+
+    fn try_add_color(&mut self,normal: [f32;3]) -> Result<(),&str>{
+        self.try_add_normal(normal)
+    }
+
+    fn try_add_uv(&mut self,uv: [f32;2]) -> Result<(),&str>;
+}
+
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct BasicVertex{
+    pub position: [f32;3],
+}
+
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct ColoredVertex{
@@ -21,8 +41,44 @@ pub struct BasicInstanceData{
     data: [[f32;4];4]
 }
 
-impl ColoredVertex{
-    pub fn layout() -> VertexBufferLayout<'static>{
+impl VertexLayout for BasicVertex{
+    fn layout() -> VertexBufferLayout<'static>{
+        VertexBufferLayout{
+            array_stride: std::mem::size_of::<BasicVertex>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &[
+                //position attribute (location = 0)
+                wgpu::VertexAttribute{
+                    format: wgpu::VertexFormat::Float32x3,
+                    offset: 0,
+                    shader_location: 0,
+                },
+            ],
+        }
+    }
+    
+    fn add_position(&mut self,position: [f32;3]){
+        self.position = position;
+    }
+    
+    fn try_add_normal(&mut self,normal: [f32;3]) -> Result<(),&str> {
+        Err("BasicVertex doesn't support normals!")
+    }
+    
+    fn try_add_uv(&mut self,position: [f32;2]) -> Result<(),&str> {
+        Err("BasicVertex doesn't support uvs!")
+    }
+    
+    fn new() -> Self {
+        Self{
+            position: Default::default()
+        }
+    }
+    
+}
+
+impl VertexLayout for ColoredVertex{
+    fn layout() -> VertexBufferLayout<'static>{
         VertexBufferLayout{
             array_stride: std::mem::size_of::<ColoredVertex>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
@@ -42,10 +98,30 @@ impl ColoredVertex{
             ],
         }
     }
+    
+    fn add_position(&mut self,position: [f32;3]){
+        self.position = position;
+    }
+    
+    fn try_add_normal(&mut self,normal: [f32;3]) -> Result<(),&str> {
+        self.color = normal;
+        Ok(())
+    }
+    
+    fn try_add_uv(&mut self,_uv: [f32;2]) -> Result<(),&str> {
+        Err("BasicVertex doesn't support uvs!")
+    }
+
+    fn new() -> Self {
+        Self{
+            position: Default::default(),
+            color: Default::default()
+        }
+    }
 }
 
-impl TexturedVertex{
-    pub fn layout() -> VertexBufferLayout<'static>{
+impl VertexLayout for TexturedVertex{
+    fn layout() -> VertexBufferLayout<'static>{
         VertexBufferLayout{
             array_stride: std::mem::size_of::<TexturedVertex>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
@@ -64,6 +140,26 @@ impl TexturedVertex{
                 }
 
             ],
+        }
+    }
+    
+    fn add_position(&mut self,position: [f32;3]){
+        self.position = position;
+    }
+    
+    fn try_add_normal(&mut self,_normal: [f32;3]) -> Result<(),&str> {
+        Err("BasicVertex doesn't support normals!")
+    }
+    
+    fn try_add_uv(&mut self,uv: [f32;2]) -> Result<(),&str> {
+        self.uv = uv;
+        Ok(())
+    }
+
+    fn new() -> Self {
+        Self{
+            position: Default::default(),
+            uv: Default::default()
         }
     }
 }

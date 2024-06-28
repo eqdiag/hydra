@@ -1,4 +1,4 @@
-use hydra::{app::{App, EventHandler, Frame}, context::Context, pipeline::RenderPipelineBuilder, texture, vertex::{ColoredVertex, TexturedVertex}};
+use hydra::{app::{App, EventHandler, Frame}, context::Context, pipeline::RenderPipelineBuilder, texture, vertex::{ColoredVertex, TexturedVertex, VertexLayout}};
 use image::GenericImageView;
 use wgpu::{util::{BufferInitDescriptor, DeviceExt}, Backends, ImageCopyTexture, ImageCopyTextureBase, IndexFormat, ShaderModule, ShaderSource, VertexBufferLayout};
 use winit::{event::ElementState, keyboard::KeyCode::*, window};
