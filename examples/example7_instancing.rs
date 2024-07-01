@@ -335,7 +335,7 @@ fn render(state: &State,ctx: &Context,frame: Frame){
 
 }
 
-fn resize(state: &mut State,ctx: &Context,width: u32,height: u32,event_handler: EventHandler){
+fn resize(state: &mut State,ctx: &Context,width: u32,height: u32){
     if width > 0 && height > 0{
         state.camera.update_to_perspective(PerspectiveParams{
             aspect: width as f32 / height as f32,
@@ -346,7 +346,7 @@ fn resize(state: &mut State,ctx: &Context,width: u32,height: u32,event_handler: 
     }
 }
 
-fn key_input(state: &mut State,key: hydra::app::Key,key_state: ElementState,event_handler: EventHandler){
+fn key_input(state: &mut State,key: hydra::app::Key,key_state: ElementState,event_handler: &EventHandler){
     state.camera_controller.on_key_fn(key, key_state);
     match key{
         Escape => event_handler.exit(),
@@ -354,11 +354,11 @@ fn key_input(state: &mut State,key: hydra::app::Key,key_state: ElementState,even
     }
 }
 
-fn mouse_move(state: &mut State,delta: (f32,f32),event_handler: EventHandler){
+fn mouse_move(state: &mut State,delta: (f32,f32),event_handler: &EventHandler){
     state.camera_controller.on_mouse_move_fn(delta);
 }
 
-fn mouse_input(state: &mut State,mouse_button: MouseButton,button_state: ElementState,event_handler: EventHandler){
+fn mouse_input(state: &mut State,mouse_button: MouseButton,button_state: ElementState,event_handler: &EventHandler){
     state.camera_controller.on_mouse_input_fn(button_state, mouse_button);
 }
 

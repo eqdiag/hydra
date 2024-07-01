@@ -1,8 +1,12 @@
-use hydra::{app::{App, EventHandler, Frame}, camera::{self, PerspectiveParams}, context::Context, mesh::Mesh, pipeline::RenderPipelineBuilder, texture, vertex::{BasicInstanceData, ColoredVertex, TexturedVertex, VertexLayout}};
+use egui::{FontDefinitions, FullOutput};
+use egui_demo_lib::DemoWindows;
+use egui_wgpu_backend::{RenderPass, ScreenDescriptor};
+use egui_winit_platform::{Platform, PlatformDescriptor};
+use hydra::{app::{App, Frame}, camera::{self, PerspectiveParams}, context::Context, mesh::Mesh, pipeline::RenderPipelineBuilder, texture, ui::{self, Ui}, vertex::{BasicInstanceData, ColoredVertex, TexturedVertex, VertexLayout}};
 use image::GenericImageView;
 use nalgebra_glm::{identity, quat_cast, rotate_y, to_quat, translation, two_pi, vec3};
 use wgpu::{util::{BufferInitDescriptor, DeviceExt}, Backends, ImageCopyTexture, ImageCopyTextureBase, IndexFormat, ShaderModule, ShaderSource, VertexBufferLayout};
-use winit::{event::{ElementState, MouseButton}, keyboard::KeyCode::*, window};
+use winit::{event::{ElementState, MouseButton}, event_loop::EventLoopWindowTarget, keyboard::KeyCode::*, window};
 
 
 const NUM_INSTANCES: u32 = 10;
@@ -66,10 +70,10 @@ struct State{
     cpu_instance_data: Vec<MatrixUniform>,
     gpu_instance_data: wgpu::Buffer,
 
-    pub t: f32
+    pub t: f32,
 }
 
-fn init(_app: &App<State>,ctx: &Context) -> State{
+fn init(app: &App<State>,ctx: &Context) -> State{
 
 
     let mesh = Mesh::from_obj("assets/bunny.obj").unwrap();
@@ -277,7 +281,6 @@ fn init(_app: &App<State>,ctx: &Context) -> State{
             bias: wgpu::DepthBiasState::default(),
         })
         .build();
-        
 
     State{
         pipeline,
@@ -297,7 +300,7 @@ fn init(_app: &App<State>,ctx: &Context) -> State{
         instances,
         cpu_instance_data,
         gpu_instance_data,
-        t: 0.0
+        t: 0.0,
     }
 }
 
@@ -327,7 +330,7 @@ fn update(state: &mut State,ctx: &Context){
     ctx.queue.write_buffer(&state.gpu_instance_data, 0,bytemuck::cast_slice(&state.cpu_instance_data));
 }
 
-fn render(state: &State,ctx: &Context,frame: Frame){
+fn render(state: &State,ui: &mut ui::Ui, ctx: &Context,frame: Frame){
     
     //texture view to render to
     let view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
@@ -384,8 +387,39 @@ fn render(state: &State,ctx: &Context,frame: Frame){
         render_pass.draw_indexed(0..state.num_indices,0, 0..NUM_INSTANCES);
     }
 
+    //egui rendering here...
+
+    //begin frame
+    ui.platform.begin_frame();
+    
+    //actual ui drawing
+    ui.egui_demo_app.ui(&ui.platform.context());
+
+    //end frame
+    //todo: see what this is about, if we do pass window
+    let output = ui.platform.end_frame(None);
+
+    //not sure what pixels per point is
+    let paint_jobs = ui.platform.context().tessellate(output.shapes,ui.platform.context().pixels_per_point());
+
+    let screen_descriptor = ScreenDescriptor{
+        physical_width: ctx.config.width,
+        physical_height: ctx.config.height,
+        scale_factor: 1.0, //1 for rn, should actually query this, for high density displays
+    };
+    let tex_diff: egui::TexturesDelta = output.textures_delta;
+
+    ui.ui_render_pass.add_textures(&ctx.device,&ctx.queue,&tex_diff).expect("added textures to ui pass");
+    ui.ui_render_pass.update_buffers(&ctx.device, &ctx.queue, &paint_jobs, &screen_descriptor);
+
+    ui.ui_render_pass.execute(&mut encoder,&view, &paint_jobs, &screen_descriptor,None).unwrap();
+
+
     ctx.queue.submit(std::iter::once(encoder.finish()));
     frame.present();
+
+    //cleanup egui per frame resources
+    ui.ui_render_pass.remove_textures(tex_diff).expect("yay removed ui textures");
 
 }
 
@@ -418,19 +452,21 @@ fn resize(state: &mut State,ctx: &Context,width: u32,height: u32){
     state.depth_texture_view = state.depth_texture.create_view(&wgpu::TextureViewDescriptor::default());
 }
 
-fn key_input(state: &mut State,key: hydra::app::Key,key_state: ElementState,event_handler: &EventHandler){
+fn key_input(state: &mut State,key: hydra::app::Key,key_state: ElementState,control: &EventLoopWindowTarget<()>){
     state.camera_controller.on_key_fn(key, key_state);
     match key{
-        Escape => event_handler.exit(),
+        Escape => {
+            control.exit();
+        },
         _ => {}
     }
 }
 
-fn mouse_move(state: &mut State,delta: (f32,f32),event_handler: &EventHandler){
+fn mouse_move(state: &mut State,delta: (f32,f32),control: &EventLoopWindowTarget<()>){
     state.camera_controller.on_mouse_move_fn(delta);
 }
 
-fn mouse_input(state: &mut State,mouse_button: MouseButton,button_state: ElementState,event_handler: &EventHandler){
+fn mouse_input(state: &mut State,mouse_button: MouseButton,button_state: ElementState,control: &EventLoopWindowTarget<()>){
     state.camera_controller.on_mouse_input_fn(button_state, mouse_button);
 }
 
@@ -438,11 +474,11 @@ fn mouse_input(state: &mut State,mouse_button: MouseButton,button_state: Element
 fn main(){
     App::new(init)
     .update(update)
-    .render(render)
+    .render_with_ui(render)
     .on_window_resize(resize)
     .on_key(key_input)
     .on_mouse_move(mouse_move)
     .on_mouse_input(mouse_input)
-    .with_title("example9_mesh".to_string())
+    .with_title("example10_ui".to_string())
     .run();
 }

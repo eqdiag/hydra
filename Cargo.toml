@@ -4,8 +4,14 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-winit = { version = "0.30.2", features = ["rwh_06"] } #windowing
+#winit = { version = "0.27.3", features = ["rwh_06"] } #windowing
+#windowing (not the newest, but the egui integration requires this older version for events rn)
+winit = { version = "0.29", features = ["rwh_05"]} 
 wgpu = "0.20.1" #wgpu itself
+egui = "0.27.2" #ui library
+egui_winit_platform = "0.22.0"
+egui_wgpu_backend = "0.29.0"
+egui_demo_lib = "0.27.2"
 env_logger = "0.11.3" #logging for wgpu debugging
 pollster = "0.3" #block on async functions
 colored = "2.1.0" #prettier more convenient logging

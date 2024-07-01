@@ -1,5 +1,5 @@
-use hydra::{app::{App, EventHandler}, context::Context,app::Frame};
-use winit::{event::ElementState, keyboard::KeyCode::*};
+use hydra::{app::{App, EventHandler, Frame}, context::Context};
+use winit::{event::ElementState, event_loop::EventLoopWindowTarget, keyboard::KeyCode::*};
 
 
 struct State{
@@ -21,10 +21,10 @@ fn render(state: &State,ctx: &Context,frame: Frame){
     println!("value {}",state.x);
 }
 
-fn key_input(state: &mut State,key: hydra::app::Key,key_state: ElementState,event_handler: EventHandler){
+fn key_input(state: &mut State,key: hydra::app::Key,key_state: ElementState,control: &EventHandler){
     println!("key: {:#?}",key);
     match key{
-        Escape => event_handler.exit(),
+        Escape => control.exit(),
         _ => {}
     }
 }

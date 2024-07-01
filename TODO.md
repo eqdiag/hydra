@@ -21,7 +21,7 @@
 - util (higher-level abstractions built up on wgpu)
     - [x] camera
     - [x] mesh
-    - [ ] ui (egui) (seems useful to get started https://github.com/ejb004/egui-wgpu-demo/blob/master/src/gui.rs)
+    - [x] ui 
 
 
 
