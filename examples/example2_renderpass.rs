@@ -1,4 +1,4 @@
-use hydra::{app::{App, EventHandler, Frame}, context::Context};
+use hydra::base::{app::{App, EventHandler, Frame}, context::Context};
 use wgpu::Backends;
 use winit::{event::ElementState, event_loop::EventLoopWindowTarget, keyboard::KeyCode::*, window};
 
@@ -52,7 +52,7 @@ fn render(state: &State,ctx: &Context,frame: Frame){
 
 }
 
-fn key_input(state: &mut State,key: hydra::app::Key,key_state: ElementState,control: &EventHandler){
+fn key_input(state: &mut State,key: hydra::base::app::Key,key_state: ElementState,control: &EventHandler){
     println!("key: {:#?}",key);
     match key{
         Escape => control.exit(),

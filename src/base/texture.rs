@@ -8,7 +8,7 @@ pub struct Texture{
 }
 
 impl Texture{
-    pub fn from_bytes(context: &crate::context::Context, bytes: &[u8]) -> Result<Self,image::ImageError>{
+    pub fn from_bytes(context: &crate::base::context::Context, bytes: &[u8]) -> Result<Self,image::ImageError>{
         let image = image::load_from_memory(bytes)?;
         //convert it
         let image_rgba = image.to_rgba8();

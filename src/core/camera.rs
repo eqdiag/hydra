@@ -1,7 +1,7 @@
 use nalgebra_glm::{half_pi, RealNumber};
 use winit::event::{ElementState, MouseButton};
 
-use crate::app::{Key, Position, Size};
+use crate::base::app::{Key, Position, Size};
 
 pub struct PerspectiveParams{
     pub aspect: f32,

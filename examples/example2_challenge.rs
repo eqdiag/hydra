@@ -1,4 +1,4 @@
-use hydra::{app::{App, EventHandler, Frame, Size}, context::Context};
+use hydra::base::{app::{App, EventHandler, Frame, Size}, context::Context};
 use wgpu::{Backends, Color};
 use winit::{event::ElementState, event_loop::EventLoopWindowTarget, keyboard::KeyCode::*, window};
 
@@ -54,7 +54,7 @@ fn render(state: &State,ctx: &Context,frame: Frame){
 
 }
 
-fn key_input(state: &mut State,key: hydra::app::Key,key_state: ElementState,control: &EventHandler){
+fn key_input(state: &mut State,key: hydra::base::app::Key,key_state: ElementState,control: &EventHandler){
     println!("key: {:#?}",key);
     match key{
         Escape => control.exit(),
@@ -62,7 +62,7 @@ fn key_input(state: &mut State,key: hydra::app::Key,key_state: ElementState,cont
     }
 }
 
-fn cursor_move(state: &mut State,position: hydra::app::Position,size: Size,event_handler: &EventHandler){
+fn cursor_move(state: &mut State,position: hydra::base::app::Position,size: Size,event_handler: &EventHandler){
     let r = position.x / size.width as f64;
     let b = position.y / size.height as f64;
     state.bg_color = Color{r: r,g: 0.0,b: b,a: 1.0};

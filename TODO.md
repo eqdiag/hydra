@@ -10,6 +10,8 @@
 - [x] Instancing (example7_instancing.rs)
 - [x] Depth buffer (example8_depth.rs)
 - [x] Meshes (example9_mesh.rs)
+- [x] Compute (example11_compute.rs)
+
 
 ## Library structure
 - core (wgpu basic structure helpers for common use cases)   
@@ -29,17 +31,4 @@
 - [ ] Multiple cameras
     - [ ] Arc camera
     - [x] Fly camera
-- [ ] Gradient sky background (compute)
-- [ ] Blinn-Phong model
-- [ ] Gamma correction
-- [ ] Shadows
-- [ ] Normal mapping
-- [ ] Parallax mapping
-- [ ] HDR
-- [ ] Bloom
-- [ ] Deferred shading
-- [ ] SSAO
-- [ ] Descriptor set allocator
-- [ ] Material system
-- [ ] Object system
-- [ ] GLTF loading
+

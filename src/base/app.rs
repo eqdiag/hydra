@@ -1,13 +1,12 @@
 use colored::Colorize;
 use wgpu::SurfaceTexture;
 use winit::dpi::{PhysicalPosition, PhysicalSize};
-use winit::event::{DeviceEvent, DeviceId, ElementState, Event, KeyEvent, MouseButton};
+use winit::event::{DeviceEvent,ElementState, Event, KeyEvent, MouseButton};
 use winit::event_loop::EventLoopWindowTarget;
 use winit::keyboard::PhysicalKey::Code;
-use winit::window::{WindowAttributes, WindowBuilder};
-
-use crate::context::Context;
-use crate::ui::{self, Ui};
+use winit::window::WindowBuilder;
+use crate::base::context::Context;
+use crate::core::ui::{self, Ui};
 
 pub type Key = winit::keyboard::KeyCode;
 pub type Frame = SurfaceTexture;
@@ -18,7 +17,7 @@ pub type EventHandler = EventLoopWindowTarget<()>;
 
 //App state
 pub struct App<'a,T>{
-    context: Option<crate::context::Context<'a>>,
+    context: Option<crate::base::context::Context<'a>>,
     window: Option<&'a winit::window::Window>,
     ui: Option<Ui>,
     state: Option<T>,
@@ -62,7 +61,7 @@ impl<'window,T> App<'window,T>{
         }
     }
 
-    pub fn context(&self) -> Option<&crate::context::Context>{
+    pub fn context(&self) -> Option<&crate::base::context::Context>{
         self.context.as_ref()
     }
 
@@ -130,7 +129,7 @@ impl<'window,T> App<'window,T>{
 
 
         //Create a context here
-        let context = crate::context::Context::new(window).await;
+        let context = crate::base::context::Context::new(window).await;
         self.context = Some(context);
 
         self.window = Some(&window);

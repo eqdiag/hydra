@@ -3,6 +3,7 @@ name = "hydra"
 version = "0.1.0"
 edition = "2021"
 
+
 [dependencies]
 #winit = { version = "0.27.3", features = ["rwh_06"] } #windowing
 #windowing (not the newest, but the egui integration requires this older version for events rn)

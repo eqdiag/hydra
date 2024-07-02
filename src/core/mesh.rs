@@ -1,6 +1,6 @@
 use tobj::LoadError;
 
-use crate::vertex::{VertexLayout};
+use crate::base::vertex::{VertexLayout};
 
 pub struct Mesh<T: VertexLayout>{
     pub vertices: Vec<T>,

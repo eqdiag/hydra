@@ -5,7 +5,7 @@ use egui_demo_lib::DemoWindows;
 use egui_wgpu_backend::RenderPass;
 use egui_winit_platform::{Platform, PlatformDescriptor};
 
-use crate::{app::App, context::Context};
+use crate::base::{app::App, context::Context};
 
 
 pub struct Ui{

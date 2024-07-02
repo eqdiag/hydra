@@ -1,4 +1,4 @@
-use hydra::{app::{App, EventHandler, Frame}, camera::{self, PerspectiveParams}, context::Context, pipeline::RenderPipelineBuilder, texture, vertex::{BasicInstanceData, ColoredVertex, TexturedVertex, VertexLayout}};
+use hydra::{base::{app::{App, EventHandler, Frame}, context::Context, pipeline::RenderPipelineBuilder, texture, vertex::{BasicInstanceData, ColoredVertex, TexturedVertex, VertexLayout}}, core::camera::{self, PerspectiveParams}};
 use image::GenericImageView;
 use nalgebra_glm::{identity, quat_cast, rotate_y, to_quat, translation, two_pi, vec3};
 use wgpu::{util::{BufferInitDescriptor, DeviceExt}, Backends, ImageCopyTexture, ImageCopyTextureBase, IndexFormat, ShaderModule, ShaderSource, VertexBufferLayout};
@@ -359,7 +359,7 @@ fn resize(state: &mut State,ctx: &Context,width: u32,height: u32){
     }
 }
 
-fn key_input(state: &mut State,key: hydra::app::Key,key_state: ElementState,event_handler: &EventHandler){
+fn key_input(state: &mut State,key: hydra::base::app::Key,key_state: ElementState,event_handler: &EventHandler){
     state.camera_controller.on_key_fn(key, key_state);
     match key{
         Escape => event_handler.exit(),

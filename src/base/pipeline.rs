@@ -2,12 +2,12 @@ use std::num::NonZeroU32;
 
 use wgpu::{core::id::markers::PipelineLayout, hal::DepthStencilAttachment, Face, FrontFace, ShaderModule, ShaderSource, VertexBufferLayout};
 
-use crate::context;
+use crate::base::context;
 
 pub struct RenderPipelineBuilder<'a>{
 
     //context
-    context: &'a crate::context::Context<'a>,
+    context: &'a crate::base::context::Context<'a>,
 
     //pipeline layout
     layout: Option<wgpu::PipelineLayout>,
@@ -36,7 +36,7 @@ pub struct RenderPipelineBuilder<'a>{
 
 impl<'a> RenderPipelineBuilder<'a>{
 
-    pub fn new(context: &'a crate::context::Context<'a>) -> Self{
+    pub fn new(context: &'a crate::base::context::Context<'a>) -> Self{
         RenderPipelineBuilder{
             context: context,
             layout: None,
