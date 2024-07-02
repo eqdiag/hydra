@@ -9,6 +9,36 @@ It provides many *utility* gpu functions and math functions to make setting up 2
 It's also designed to be *:wavy_dash:ergonomic:wavy_dash:* 
 
 
+## Examples
+- [x] Window (example1_window.rs)
+- [x] Render Pass (example2_renderpass.rs)
+- [x] Graphics Pipeline (example3_graphics_pipeline.rs)
+- [x] Buffers & Indices (example4_buffers.rs)
+- [x] Textures & Bind Groups (example5_textures.rs)
+- [x] Uniforms and camera (example6_uniforms.rs)
+- [x] Instancing (example7_instancing.rs)
+- [x] Depth buffer (example8_depth.rs)
+- [x] Meshes (example9_mesh.rs)
+- [x] Compute (example11_compute.rs)
+
+
+## Library structure
+- base (wgpu basic structure helpers for common use cases)   
+    - app
+    - context
+    - pipeline
+    - texture
+    - vertex
+- core (higher-level abstractions built up on wgpu)
+    - camera
+    - mesh
+    - ui
+
+## TODO
+- [ ] arc camera
+- [ ] compute shader example
+- [ ] get working on web
+
 ## Installation
 
 
